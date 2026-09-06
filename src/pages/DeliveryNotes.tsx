@@ -1,10 +1,13 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { Plus, X, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Plus, Search, X, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { DeliveryNotePreview } from '../components/DeliveryNotePreview';
+import { PrintButton } from '../components/PrintButton';
+import { ShareButton } from '../components/ShareButton';
+import { WhatsAppWebButton } from '../components/WhatsAppWebButton';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
-import type { Client, DeliveryNote, Product, QuoteItem, Stockpile } from '../types';
+import type { Client, DeliveryNote, DeliveryNoteItem, Product, SaleDeliveryNote, Stockpile } from '../types';
 
 function NewDeliveryNoteForm({
   clients,
@@ -21,20 +24,18 @@ function NewDeliveryNoteForm({
 }) {
   const [clientId, setClientId] = useState(clients[0]?.id ?? '');
   const [stockpileId, setStockpileId] = useState<string>('');
-  const [items, setItems] = useState<QuoteItem[]>([
-    { product_id: products[0]?.id ?? '', quantity: 1, unit_price: products[0]?.price ?? 0 },
-  ]);
+  const [items, setItems] = useState<DeliveryNoteItem[]>([{ product_id: products[0]?.id ?? '', quantity: 1 }]);
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string>();
 
   const clientStockpiles = stockpiles.filter((s) => s.client_id === clientId && s.remaining > 0);
 
-  function updateItem(index: number, patch: Partial<QuoteItem>) {
+  function updateItem(index: number, patch: Partial<DeliveryNoteItem>) {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
   }
 
   function addItem() {
-    setItems((prev) => [...prev, { product_id: products[0]?.id ?? '', quantity: 1, unit_price: products[0]?.price ?? 0 }]);
+    setItems((prev) => [...prev, { product_id: products[0]?.id ?? '', quantity: 1 }]);
   }
 
   function removeItem(index: number) {
@@ -107,10 +108,7 @@ function NewDeliveryNoteForm({
           <div key={index} className="flex gap-2 items-center">
             <select
               value={item.product_id}
-              onChange={(e) => {
-                const product = products.find((p) => p.id === e.target.value);
-                updateItem(index, { product_id: e.target.value, unit_price: product?.price ?? item.unit_price });
-              }}
+              onChange={(e) => updateItem(index, { product_id: e.target.value })}
               className="flex-1 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
             >
               {products.map((product) => (
@@ -126,14 +124,6 @@ function NewDeliveryNoteForm({
               onChange={(e) => updateItem(index, { quantity: Number(e.target.value) })}
               className="w-24 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
               placeholder="Cant."
-            />
-            <input
-              type="number"
-              step="any"
-              value={item.unit_price}
-              onChange={(e) => updateItem(index, { unit_price: Number(e.target.value) })}
-              className="w-28 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-              placeholder="Precio"
             />
             <button
               type="button"
@@ -178,9 +168,12 @@ export function DeliveryNotes() {
   const [clients, setClients] = useState<Client[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [stockpiles, setStockpiles] = useState<Stockpile[]>([]);
+  const [saleDeliveryNotes, setSaleDeliveryNotes] = useState<SaleDeliveryNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [previewNote, setPreviewNote] = useState<DeliveryNote | null>(null);
+  const [search, setSearch] = useState('');
+  const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadData();
@@ -188,17 +181,19 @@ export function DeliveryNotes() {
 
   async function loadData() {
     setLoading(true);
-    const [notesResult, clientsResult, productsResult, stockpilesResult] = await Promise.all([
+    const [notesResult, clientsResult, productsResult, stockpilesResult, linksResult] = await Promise.all([
       supabase.from('delivery_notes').select('*').order('created_at', { ascending: false }),
       supabase.from('clients').select('*').order('name'),
       supabase.from('products').select('*').order('name'),
       supabase.from('stockpiles').select('*'),
+      supabase.from('sale_delivery_notes').select('*'),
     ]);
     setDeliveryNotes((notesResult.data ?? []) as DeliveryNote[]);
     setClients((clientsResult.data ?? []) as Client[]);
     setProducts((productsResult.data ?? []) as Product[]);
     const rawStockpiles = (stockpilesResult.data ?? []) as Omit<Stockpile, 'remaining'>[];
     setStockpiles(rawStockpiles.map((s) => ({ ...s, remaining: s.total_reserved - s.total_withdrawn })));
+    setSaleDeliveryNotes((linksResult.data ?? []) as SaleDeliveryNote[]);
     setLoading(false);
   }
 
@@ -209,6 +204,14 @@ export function DeliveryNotes() {
 
   const clientsById = Object.fromEntries(clients.map((c) => [c.id, c]));
   const productsById = Object.fromEntries(products.map((p) => [p.id, p]));
+  const linkedNoteIds = new Set(saleDeliveryNotes.map((link) => link.delivery_note_id));
+
+  const filteredNotes = deliveryNotes.filter((note) => {
+    const term = search.trim().toLowerCase();
+    if (!term) return true;
+    const clientName = clientsById[note.client_id]?.name ?? '';
+    return clientName.toLowerCase().includes(term) || String(note.number).padStart(6, '0').includes(term);
+  });
 
   return (
     <div className="space-y-6">
@@ -222,6 +225,16 @@ export function DeliveryNotes() {
           <Plus size={16} />
           Nuevo remito
         </button>
+      </div>
+
+      <div className="relative max-w-sm">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por cliente o N.º de remito..."
+          className="w-full rounded-lg border border-gray-700 bg-gray-900 pl-9 pr-3 py-2 text-white"
+        />
       </div>
 
       {showForm && (
@@ -244,14 +257,32 @@ export function DeliveryNotes() {
 
       {previewNote && (
         <div className="space-y-3">
-          <button onClick={() => setPreviewNote(null)} className="text-sm text-gray-400 hover:text-white">
-            ← Volver al listado
-          </button>
-          <DeliveryNotePreview
-            deliveryNote={previewNote}
-            client={clientsById[previewNote.client_id]}
-            productsById={productsById}
-          />
+          <div className="print:hidden flex items-center justify-between">
+            <button onClick={() => setPreviewNote(null)} className="text-sm text-gray-400 hover:text-white">
+              ← Volver al listado
+            </button>
+            <div className="flex gap-3">
+              <PrintButton />
+              <ShareButton
+                targetRef={previewRef}
+                fileName={`remito-${String(previewNote.number).padStart(6, '0')}.pdf`}
+                shareTitle={`Remito N.º ${String(previewNote.number).padStart(6, '0')}`}
+              />
+              <WhatsAppWebButton
+                targetRef={previewRef}
+                fileName={`remito-${String(previewNote.number).padStart(6, '0')}.pdf`}
+                phone={clientsById[previewNote.client_id]?.phone ?? null}
+                message={`Hola! Te paso el remito N.º ${String(previewNote.number).padStart(6, '0')}.`}
+              />
+            </div>
+          </div>
+          <div ref={previewRef}>
+            <DeliveryNotePreview
+              deliveryNote={previewNote}
+              client={clientsById[previewNote.client_id]}
+              productsById={productsById}
+            />
+          </div>
         </div>
       )}
 
@@ -261,6 +292,8 @@ export function DeliveryNotes() {
             <p className="p-5 text-gray-400">Cargando remitos...</p>
           ) : deliveryNotes.length === 0 ? (
             <p className="p-5 text-gray-400">No hay remitos generados todavía.</p>
+          ) : filteredNotes.length === 0 ? (
+            <p className="p-5 text-gray-400">Ningún remito coincide con la búsqueda.</p>
           ) : (
             <table className="w-full text-sm">
               <thead>
@@ -268,15 +301,27 @@ export function DeliveryNotes() {
                   <th className="px-5 py-3">N.º</th>
                   <th className="px-5 py-3">Cliente</th>
                   <th className="px-5 py-3">Fecha</th>
+                  <th className="px-5 py-3">Facturación</th>
                   <th className="px-5 py-3"></th>
                 </tr>
               </thead>
               <tbody>
-                {deliveryNotes.map((note) => (
+                {filteredNotes.map((note) => (
                   <tr key={note.id} className="border-b border-gray-800 last:border-0">
                     <td className="px-5 py-3 text-white font-medium">{String(note.number).padStart(6, '0')}</td>
                     <td className="px-5 py-3 text-gray-300">{clientsById[note.client_id]?.name ?? '—'}</td>
                     <td className="px-5 py-3 text-gray-400">{new Date(note.created_at).toLocaleDateString('es-AR')}</td>
+                    <td className="px-5 py-3">
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                          linkedNoteIds.has(note.id)
+                            ? 'bg-green-500/10 text-green-500'
+                            : 'bg-yellow-500/10 text-yellow-500'
+                        }`}
+                      >
+                        {linkedNoteIds.has(note.id) ? 'Facturado' : 'Pendiente'}
+                      </span>
+                    </td>
                     <td className="px-5 py-3 text-right">
                       <button
                         onClick={() => setPreviewNote(note)}

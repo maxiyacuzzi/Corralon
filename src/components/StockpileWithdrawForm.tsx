@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
+import { bulkToRetail, formatStock } from '../lib/units';
 import type { Product, Stockpile } from '../types';
 import type { SaveStatus } from './SaveStatusIndicator';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
@@ -11,10 +12,18 @@ interface StockpileWithdrawFormProps {
   onCancel: () => void;
 }
 
+type LoadUnit = 'bulk' | 'retail';
+
 export function StockpileWithdrawForm({ stockpile, product, onSaved, onCancel }: StockpileWithdrawFormProps) {
+  const showUnitToggle = product.bulk_unit !== product.retail_unit;
+  const [unit, setUnit] = useState<LoadUnit>(showUnitToggle ? 'bulk' : 'retail');
   const [quantity, setQuantity] = useState('');
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string>();
+
+  const enteredQuantity = Number(quantity) || 0;
+  const retailQuantity = showUnitToggle && unit === 'bulk' ? bulkToRetail(product, enteredQuantity) : enteredQuantity;
+  const exceedsRemaining = retailQuantity > stockpile.remaining;
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -24,7 +33,7 @@ export function StockpileWithdrawForm({ stockpile, product, onSaved, onCancel }:
     const { data, error } = await supabase.functions.invoke('withdraw-stockpile', {
       body: {
         stockpile_id: stockpile.id,
-        quantity: Number(quantity),
+        quantity: retailQuantity,
       },
     });
 
@@ -41,21 +50,45 @@ export function StockpileWithdrawForm({ stockpile, product, onSaved, onCancel }:
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <p className="text-sm text-gray-400">
-        Saldo disponible: <span className="text-white font-medium">{stockpile.remaining} {product.retail_unit}</span>
+        Saldo disponible: <span className="text-white font-medium">{formatStock(product, stockpile.remaining)}</span>
       </p>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">Cantidad a retirar ({product.retail_unit})</label>
-        <input
-          required
-          type="number"
-          step="any"
-          max={stockpile.remaining}
-          value={quantity}
-          onChange={(e) => setQuantity(e.target.value)}
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-        />
+      <div className={showUnitToggle ? 'grid grid-cols-2 gap-4' : ''}>
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">
+            Cantidad a retirar {!showUnitToggle ? `(${product.retail_unit})` : ''}
+          </label>
+          <input
+            required
+            type="number"
+            step="any"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+          />
+        </div>
+        {showUnitToggle && (
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Unidad</label>
+            <select
+              value={unit}
+              onChange={(e) => setUnit(e.target.value as LoadUnit)}
+              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            >
+              <option value="bulk">{product.bulk_unit}</option>
+              <option value="retail">{product.retail_unit}</option>
+            </select>
+          </div>
+        )}
       </div>
+
+      {showUnitToggle && unit === 'bulk' && quantity && (
+        <p className="text-sm text-gray-400">
+          Equivale a <span className="text-white font-medium">{retailQuantity} {product.retail_unit}</span>
+        </p>
+      )}
+
+      {quantity && exceedsRemaining && <p className="text-sm text-red-500">Supera el saldo disponible.</p>}
 
       <div className="flex items-center justify-between pt-2">
         <SaveStatusIndicator status={status} errorMessage={errorMessage} />
@@ -69,7 +102,7 @@ export function StockpileWithdrawForm({ stockpile, product, onSaved, onCancel }:
           </button>
           <button
             type="submit"
-            disabled={status === 'saving'}
+            disabled={status === 'saving' || retailQuantity <= 0 || exceedsRemaining}
             className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-500 disabled:opacity-50"
           >
             Confirmar retiro

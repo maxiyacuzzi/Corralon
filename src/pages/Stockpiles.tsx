@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { StockpileWithdrawForm } from '../components/StockpileWithdrawForm';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
+import { bulkToRetail, formatStock } from '../lib/units';
 import type { Client, Product, Stockpile, StockMovement } from '../types';
 
 interface NewStockpileFormProps {
@@ -13,12 +14,21 @@ interface NewStockpileFormProps {
   onCancel: () => void;
 }
 
+type LoadUnit = 'bulk' | 'retail';
+
 function NewStockpileForm({ clients, products, onSaved, onCancel }: NewStockpileFormProps) {
   const [clientId, setClientId] = useState(clients[0]?.id ?? '');
   const [productId, setProductId] = useState(products[0]?.id ?? '');
+  const [unit, setUnit] = useState<LoadUnit>('bulk');
   const [totalReserved, setTotalReserved] = useState('');
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string>();
+
+  const selectedProduct = products.find((p) => p.id === productId);
+  const showUnitToggle = !!selectedProduct && selectedProduct.bulk_unit !== selectedProduct.retail_unit;
+  const enteredQuantity = Number(totalReserved) || 0;
+  const retailQuantity =
+    showUnitToggle && selectedProduct && unit === 'bulk' ? bulkToRetail(selectedProduct, enteredQuantity) : enteredQuantity;
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -28,7 +38,7 @@ function NewStockpileForm({ clients, products, onSaved, onCancel }: NewStockpile
     const { error } = await supabase.from('stockpiles').insert({
       client_id: clientId,
       product_id: productId,
-      total_reserved: Number(totalReserved),
+      total_reserved: retailQuantity,
       total_withdrawn: 0,
     });
 
@@ -75,17 +85,40 @@ function NewStockpileForm({ clients, products, onSaved, onCancel }: NewStockpile
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">Cantidad reservada</label>
-        <input
-          required
-          type="number"
-          step="any"
-          value={totalReserved}
-          onChange={(e) => setTotalReserved(e.target.value)}
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-        />
+      <div className={showUnitToggle ? 'grid grid-cols-2 gap-4' : ''}>
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">
+            Cantidad reservada {!showUnitToggle && selectedProduct ? `(${selectedProduct.retail_unit})` : ''}
+          </label>
+          <input
+            required
+            type="number"
+            step="any"
+            value={totalReserved}
+            onChange={(e) => setTotalReserved(e.target.value)}
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+          />
+        </div>
+        {showUnitToggle && selectedProduct && (
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Unidad de carga</label>
+            <select
+              value={unit}
+              onChange={(e) => setUnit(e.target.value as LoadUnit)}
+              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            >
+              <option value="bulk">{selectedProduct.bulk_unit}</option>
+              <option value="retail">{selectedProduct.retail_unit}</option>
+            </select>
+          </div>
+        )}
       </div>
+
+      {showUnitToggle && unit === 'bulk' && selectedProduct && totalReserved && (
+        <p className="text-sm text-gray-400">
+          Equivale a <span className="text-white font-medium">{retailQuantity} {selectedProduct.retail_unit}</span>
+        </p>
+      )}
 
       <div className="flex items-center justify-between pt-2">
         <SaveStatusIndicator status={status} errorMessage={errorMessage} />
@@ -217,18 +250,24 @@ export function Stockpiles() {
               </tr>
             </thead>
             <tbody>
-              {stockpiles.map((stockpile) => (
+              {stockpiles.map((stockpile) => {
+                const product = productsById[stockpile.product_id];
+                return (
                 <Fragment key={stockpile.id}>
                   <tr
                     className="border-b border-gray-800 last:border-0 cursor-pointer hover:bg-gray-800/60"
                     onClick={() => setExpandedId(expandedId === stockpile.id ? null : stockpile.id)}
                   >
                     <td className="px-5 py-3 text-white font-medium">{clientsById[stockpile.client_id]?.name ?? '—'}</td>
-                    <td className="px-5 py-3 text-gray-300">{productsById[stockpile.product_id]?.name ?? '—'}</td>
-                    <td className="px-5 py-3 text-gray-300">{stockpile.total_reserved}</td>
-                    <td className="px-5 py-3 text-gray-300">{stockpile.total_withdrawn}</td>
+                    <td className="px-5 py-3 text-gray-300">{product?.name ?? '—'}</td>
+                    <td className="px-5 py-3 text-gray-300">
+                      {product ? formatStock(product, stockpile.total_reserved) : stockpile.total_reserved}
+                    </td>
+                    <td className="px-5 py-3 text-gray-300">
+                      {product ? formatStock(product, stockpile.total_withdrawn) : stockpile.total_withdrawn}
+                    </td>
                     <td className="px-5 py-3 text-white font-medium">
-                      {stockpile.remaining} {productsById[stockpile.product_id]?.retail_unit}
+                      {product ? formatStock(product, stockpile.remaining) : stockpile.remaining}
                     </td>
                     <td className="px-5 py-3 text-right">
                       <button
@@ -257,7 +296,7 @@ export function Stockpiles() {
                               .map((w) => (
                                 <li key={w.id} className="flex justify-between text-sm text-gray-300">
                                   <span>{new Date(w.created_at).toLocaleString('es-AR')}</span>
-                                  <span>{Math.abs(w.quantity)} {productsById[stockpile.product_id]?.retail_unit}</span>
+                                  <span>{product ? formatStock(product, Math.abs(w.quantity)) : Math.abs(w.quantity)}</span>
                                 </li>
                               ))}
                           </ul>
@@ -266,7 +305,8 @@ export function Stockpiles() {
                     </tr>
                   )}
                 </Fragment>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         )}

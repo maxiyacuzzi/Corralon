@@ -2,14 +2,9 @@ import { useEffect, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { StockMovementForm } from '../components/StockMovementForm';
+import { formatStock } from '../lib/units';
+import { movementLabels } from '../lib/stockMovements';
 import type { Product, StockMovement } from '../types';
-
-const movementLabels: Record<StockMovement['type'], string> = {
-  purchase_in: 'Ingreso por compra',
-  sale_out: 'Venta',
-  stockpile_out: 'Retiro de acopio',
-  adjustment: 'Ajuste manual',
-};
 
 export function Stock() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -82,21 +77,24 @@ export function Stock() {
               </tr>
             </thead>
             <tbody>
-              {movements.map((movement) => (
+              {movements.map((movement) => {
+                const product = productsById[movement.product_id];
+                return (
                 <tr key={movement.id} className="border-b border-gray-800 last:border-0">
                   <td className="px-5 py-3 text-white font-medium">
-                    {productsById[movement.product_id]?.name ?? movement.product_id}
+                    {product?.name ?? movement.product_id}
                   </td>
                   <td className="px-5 py-3 text-gray-300">{movementLabels[movement.type]}</td>
                   <td className={`px-5 py-3 ${movement.quantity >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {movement.quantity >= 0 ? '+' : ''}
-                    {movement.quantity}
+                    {movement.quantity >= 0 ? '+' : '-'}
+                    {product ? formatStock(product, Math.abs(movement.quantity)) : Math.abs(movement.quantity)}
                   </td>
                   <td className="px-5 py-3 text-gray-400">
                     {new Date(movement.created_at).toLocaleString('es-AR')}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         )}

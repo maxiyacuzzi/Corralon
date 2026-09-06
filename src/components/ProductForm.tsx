@@ -2,19 +2,25 @@ import { useState, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import type { SaveStatus } from './SaveStatusIndicator';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
+import type { Category, Product, Supplier } from '../types';
 
 interface ProductFormProps {
+  product?: Product;
+  categories: Category[];
+  suppliers: Supplier[];
   onSaved: () => void;
   onCancel: () => void;
 }
 
-export function ProductForm({ onSaved, onCancel }: ProductFormProps) {
-  const [name, setName] = useState('');
-  const [bulkUnit, setBulkUnit] = useState('');
-  const [retailUnit, setRetailUnit] = useState('');
-  const [conversionFactor, setConversionFactor] = useState('1');
-  const [minStockAlert, setMinStockAlert] = useState('0');
-  const [price, setPrice] = useState('0');
+export function ProductForm({ product, categories, suppliers, onSaved, onCancel }: ProductFormProps) {
+  const [name, setName] = useState(product?.name ?? '');
+  const [bulkUnit, setBulkUnit] = useState(product?.bulk_unit ?? '');
+  const [retailUnit, setRetailUnit] = useState(product?.retail_unit ?? '');
+  const [conversionFactor, setConversionFactor] = useState(String(product?.conversion_factor ?? 1));
+  const [minStockAlert, setMinStockAlert] = useState(String(product?.min_stock_alert ?? 0));
+  const [price, setPrice] = useState(String(product?.price ?? 0));
+  const [categoryId, setCategoryId] = useState(product?.category_id ?? '');
+  const [supplierId, setSupplierId] = useState(product?.supplier_id ?? '');
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string>();
 
@@ -23,15 +29,20 @@ export function ProductForm({ onSaved, onCancel }: ProductFormProps) {
     setStatus('saving');
     setErrorMessage(undefined);
 
-    const { error } = await supabase.from('products').insert({
+    const payload = {
       name,
       bulk_unit: bulkUnit,
       retail_unit: retailUnit,
       conversion_factor: Number(conversionFactor),
       min_stock_alert: Number(minStockAlert),
       price: Number(price),
-      current_stock: 0,
-    });
+      category_id: categoryId || null,
+      supplier_id: supplierId || null,
+    };
+
+    const { error } = product
+      ? await supabase.from('products').update(payload).eq('id', product.id)
+      : await supabase.from('products').insert({ ...payload, current_stock: 0 });
 
     if (error) {
       setStatus('error');
@@ -54,6 +65,39 @@ export function ProductForm({ onSaved, onCancel }: ProductFormProps) {
           className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
           placeholder="Cemento Loma Negra"
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">Categoría</label>
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+          >
+            <option value="">Sin categoría</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">Proveedor</label>
+          <select
+            value={supplierId}
+            onChange={(e) => setSupplierId(e.target.value)}
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+          >
+            <option value="">Sin proveedor</option>
+            {suppliers.map((supplier) => (
+              <option key={supplier.id} value={supplier.id}>
+                {supplier.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -132,7 +176,7 @@ export function ProductForm({ onSaved, onCancel }: ProductFormProps) {
             disabled={status === 'saving'}
             className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-500 disabled:opacity-50"
           >
-            Guardar producto
+            {product ? 'Guardar cambios' : 'Guardar producto'}
           </button>
         </div>
       </div>

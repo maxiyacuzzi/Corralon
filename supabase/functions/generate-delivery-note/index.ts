@@ -1,13 +1,15 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { corsHeaders } from '../_shared/cors.ts'
 
 interface DeliveryNoteItem {
   product_id: string
   quantity: number
-  unit_price: number
 }
 
 serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
   const { client_id, stockpile_id, items } = await req.json() as {
     client_id: string
     stockpile_id: string | null
@@ -22,7 +24,12 @@ serve(async (req) => {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401 })
+  if (!user) {
+    return new Response(JSON.stringify({ error: 'No autorizado' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
 
   // Si el remito es contra un acopio, descontar el saldo primero
   if (stockpile_id) {
@@ -31,7 +38,10 @@ serve(async (req) => {
       body: { stockpile_id, quantity: totalQuantity },
     })
     if (withdrawError) {
-      return new Response(JSON.stringify({ error: withdrawError.message }), { status: 400 })
+      return new Response(JSON.stringify({ error: withdrawError.message }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
   } else {
     // Venta directa: descontar cada producto del stock general
@@ -59,10 +69,13 @@ serve(async (req) => {
     .single()
 
   if (insertError) {
-    return new Response(JSON.stringify({ error: insertError.message }), { status: 400 })
+    return new Response(JSON.stringify({ error: insertError.message }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 
   return new Response(JSON.stringify({ success: true, delivery_note: deliveryNote }), {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 })

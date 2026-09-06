@@ -2,11 +2,14 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   Package,
+  Tag,
+  Truck,
   Boxes,
   Users,
   FileText,
   Receipt,
   ShoppingCart,
+  Banknote,
   LogOut,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -14,12 +17,15 @@ import { useAuth } from '../context/AuthContext';
 const links = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/productos', label: 'Productos', icon: Package, end: false },
+  { to: '/categorias', label: 'Categorías', icon: Tag, end: false },
+  { to: '/proveedores', label: 'Proveedores', icon: Truck, end: false },
   { to: '/stock', label: 'Stock', icon: Boxes, end: false },
   { to: '/acopios', label: 'Acopios', icon: Boxes, end: false },
   { to: '/clientes', label: 'Clientes', icon: Users, end: false },
   { to: '/presupuestos', label: 'Presupuestos', icon: FileText, end: false },
   { to: '/remitos', label: 'Remitos', icon: Receipt, end: false },
   { to: '/ventas', label: 'Ventas', icon: ShoppingCart, end: false },
+  { to: '/valores', label: 'Valores', icon: Banknote, end: false },
 ];
 
 export function Sidebar() {

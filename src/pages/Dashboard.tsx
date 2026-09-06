@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import { Package, AlertTriangle, Boxes, TrendingUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { StatCard } from '../components/StatCard';
-import type { DeliveryNote, Stats, StockMovement } from '../types';
+import { formatStock } from '../lib/units';
+import { movementLabels } from '../lib/stockMovements';
+import type { DeliveryNote, Product, Stats, StockMovement } from '../types';
 
 export function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentMovements, setRecentMovements] = useState<StockMovement[]>([]);
   const [recentDeliveryNotes, setRecentDeliveryNotes] = useState<DeliveryNote[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,23 +25,24 @@ export function Dashboard() {
     startOfMonth.setHours(0, 0, 0, 0);
 
     const [productsResult, stockpilesResult, salesResult, movementsResult, deliveryNotesResult] = await Promise.all([
-      supabase.from('products').select('id, current_stock, min_stock_alert'),
+      supabase.from('products').select('*'),
       supabase.from('stockpiles').select('id, total_reserved, total_withdrawn'),
       supabase.from('sales').select('id').gte('created_at', startOfMonth.toISOString()),
       supabase.from('stock_movements').select('*').order('created_at', { ascending: false }).limit(5),
       supabase.from('delivery_notes').select('*').order('created_at', { ascending: false }).limit(5),
     ]);
 
-    const products = productsResult.data ?? [];
+    const productsData = (productsResult.data ?? []) as Product[];
     const stockpiles = stockpilesResult.data ?? [];
 
     setStats({
-      total_products: products.length,
-      low_stock_count: products.filter((p) => p.current_stock <= p.min_stock_alert).length,
+      total_products: productsData.length,
+      low_stock_count: productsData.filter((p) => p.current_stock <= p.min_stock_alert).length,
       active_stockpiles: stockpiles.filter((s) => s.total_reserved - s.total_withdrawn > 0).length,
       sales_this_month: salesResult.data?.length ?? 0,
     });
 
+    setProducts(productsData);
     setRecentMovements((movementsResult.data ?? []) as StockMovement[]);
     setRecentDeliveryNotes((deliveryNotesResult.data ?? []) as DeliveryNote[]);
     setLoading(false);
@@ -47,6 +51,8 @@ export function Dashboard() {
   if (loading || !stats) {
     return <p className="text-gray-400">Cargando dashboard...</p>;
   }
+
+  const productsById = Object.fromEntries(products.map((p) => [p.id, p]));
 
   return (
     <div className="space-y-8">
@@ -71,15 +77,21 @@ export function Dashboard() {
             <p className="text-sm text-gray-400">Sin movimientos registrados.</p>
           ) : (
             <ul className="space-y-3">
-              {recentMovements.map((movement) => (
-                <li key={movement.id} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-300">{movement.type}</span>
-                  <span className={movement.quantity >= 0 ? 'text-green-500' : 'text-red-500'}>
-                    {movement.quantity >= 0 ? '+' : ''}
-                    {movement.quantity}
+              {recentMovements.map((movement) => {
+                const product = productsById[movement.product_id];
+                return (
+                <li key={movement.id} className="flex items-center justify-between text-sm gap-3">
+                  <span className="text-gray-300 truncate">
+                    {product?.name ?? 'Producto eliminado'}
+                    <span className="text-gray-500"> — {movementLabels[movement.type]}</span>
+                  </span>
+                  <span className={`whitespace-nowrap ${movement.quantity >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {movement.quantity >= 0 ? '+' : '-'}
+                    {product ? formatStock(product, Math.abs(movement.quantity)) : Math.abs(movement.quantity)}
                   </span>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </div>
