@@ -1,0 +1,297 @@
+import { useEffect, useState, type FormEvent } from 'react';
+import { Plus, X, Trash2 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { DeliveryNotePreview } from '../components/DeliveryNotePreview';
+import type { SaveStatus } from '../components/SaveStatusIndicator';
+import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
+import type { Client, DeliveryNote, Product, QuoteItem, Stockpile } from '../types';
+
+function NewDeliveryNoteForm({
+  clients,
+  products,
+  stockpiles,
+  onSaved,
+  onCancel,
+}: {
+  clients: Client[];
+  products: Product[];
+  stockpiles: Stockpile[];
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const [clientId, setClientId] = useState(clients[0]?.id ?? '');
+  const [stockpileId, setStockpileId] = useState<string>('');
+  const [items, setItems] = useState<QuoteItem[]>([
+    { product_id: products[0]?.id ?? '', quantity: 1, unit_price: products[0]?.price ?? 0 },
+  ]);
+  const [status, setStatus] = useState<SaveStatus>('idle');
+  const [errorMessage, setErrorMessage] = useState<string>();
+
+  const clientStockpiles = stockpiles.filter((s) => s.client_id === clientId && s.remaining > 0);
+
+  function updateItem(index: number, patch: Partial<QuoteItem>) {
+    setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  }
+
+  function addItem() {
+    setItems((prev) => [...prev, { product_id: products[0]?.id ?? '', quantity: 1, unit_price: products[0]?.price ?? 0 }]);
+  }
+
+  function removeItem(index: number) {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setStatus('saving');
+    setErrorMessage(undefined);
+
+    const { data, error } = await supabase.functions.invoke('generate-delivery-note', {
+      body: {
+        client_id: clientId,
+        stockpile_id: stockpileId || null,
+        items,
+      },
+    });
+
+    if (error || (data as { error?: string } | null)?.error) {
+      setStatus('error');
+      setErrorMessage((data as { error?: string } | null)?.error ?? 'Error de conexión. Intentá nuevamente.');
+      return;
+    }
+
+    setStatus('saved');
+    onSaved();
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">Cliente</label>
+          <select
+            value={clientId}
+            onChange={(e) => {
+              setClientId(e.target.value);
+              setStockpileId('');
+            }}
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+          >
+            {clients.map((client) => (
+              <option key={client.id} value={client.id}>
+                {client.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">Contra acopio (opcional)</label>
+          <select
+            value={stockpileId}
+            onChange={(e) => setStockpileId(e.target.value)}
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+          >
+            <option value="">Venta directa</option>
+            {clientStockpiles.map((stockpile) => (
+              <option key={stockpile.id} value={stockpile.id}>
+                {products.find((p) => p.id === stockpile.product_id)?.name} — saldo {stockpile.remaining}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-300">Ítems</label>
+        {items.map((item, index) => (
+          <div key={index} className="flex gap-2 items-center">
+            <select
+              value={item.product_id}
+              onChange={(e) => {
+                const product = products.find((p) => p.id === e.target.value);
+                updateItem(index, { product_id: e.target.value, unit_price: product?.price ?? item.unit_price });
+              }}
+              className="flex-1 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            >
+              {products.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              step="any"
+              value={item.quantity}
+              onChange={(e) => updateItem(index, { quantity: Number(e.target.value) })}
+              className="w-24 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+              placeholder="Cant."
+            />
+            <input
+              type="number"
+              step="any"
+              value={item.unit_price}
+              onChange={(e) => updateItem(index, { unit_price: Number(e.target.value) })}
+              className="w-28 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+              placeholder="Precio"
+            />
+            <button
+              type="button"
+              onClick={() => removeItem(index)}
+              disabled={items.length === 1}
+              className="text-gray-400 hover:text-red-500 disabled:opacity-30"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ))}
+        <button type="button" onClick={addItem} className="text-sm text-orange-500 hover:text-orange-400">
+          + Agregar ítem
+        </button>
+      </div>
+
+      <div className="flex items-center justify-between pt-2">
+        <SaveStatusIndicator status={status} errorMessage={errorMessage} />
+        <div className="flex gap-3 ml-auto">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={status === 'saving' || !clientId}
+            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-500 disabled:opacity-50"
+          >
+            Generar remito
+          </button>
+        </div>
+      </div>
+    </form>
+  );
+}
+
+export function DeliveryNotes() {
+  const [deliveryNotes, setDeliveryNotes] = useState<DeliveryNote[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [stockpiles, setStockpiles] = useState<Stockpile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [previewNote, setPreviewNote] = useState<DeliveryNote | null>(null);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function loadData() {
+    setLoading(true);
+    const [notesResult, clientsResult, productsResult, stockpilesResult] = await Promise.all([
+      supabase.from('delivery_notes').select('*').order('created_at', { ascending: false }),
+      supabase.from('clients').select('*').order('name'),
+      supabase.from('products').select('*').order('name'),
+      supabase.from('stockpiles').select('*'),
+    ]);
+    setDeliveryNotes((notesResult.data ?? []) as DeliveryNote[]);
+    setClients((clientsResult.data ?? []) as Client[]);
+    setProducts((productsResult.data ?? []) as Product[]);
+    const rawStockpiles = (stockpilesResult.data ?? []) as Omit<Stockpile, 'remaining'>[];
+    setStockpiles(rawStockpiles.map((s) => ({ ...s, remaining: s.total_reserved - s.total_withdrawn })));
+    setLoading(false);
+  }
+
+  function handleSaved() {
+    setShowForm(false);
+    loadData();
+  }
+
+  const clientsById = Object.fromEntries(clients.map((c) => [c.id, c]));
+  const productsById = Object.fromEntries(products.map((p) => [p.id, p]));
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-white">Remitos</h1>
+        <button
+          onClick={() => setShowForm(true)}
+          disabled={clients.length === 0 || products.length === 0}
+          className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-500 disabled:opacity-50"
+        >
+          <Plus size={16} />
+          Nuevo remito
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="rounded-xl border border-gray-700 bg-gray-800 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-medium text-white">Nuevo remito</h2>
+            <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-white">
+              <X size={18} />
+            </button>
+          </div>
+          <NewDeliveryNoteForm
+            clients={clients}
+            products={products}
+            stockpiles={stockpiles}
+            onSaved={handleSaved}
+            onCancel={() => setShowForm(false)}
+          />
+        </div>
+      )}
+
+      {previewNote && (
+        <div className="space-y-3">
+          <button onClick={() => setPreviewNote(null)} className="text-sm text-gray-400 hover:text-white">
+            ← Volver al listado
+          </button>
+          <DeliveryNotePreview
+            deliveryNote={previewNote}
+            client={clientsById[previewNote.client_id]}
+            productsById={productsById}
+          />
+        </div>
+      )}
+
+      {!previewNote && (
+        <div className="rounded-xl border border-gray-700 bg-gray-800 overflow-x-auto">
+          {loading ? (
+            <p className="p-5 text-gray-400">Cargando remitos...</p>
+          ) : deliveryNotes.length === 0 ? (
+            <p className="p-5 text-gray-400">No hay remitos generados todavía.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-400 border-b border-gray-700">
+                  <th className="px-5 py-3">N.º</th>
+                  <th className="px-5 py-3">Cliente</th>
+                  <th className="px-5 py-3">Fecha</th>
+                  <th className="px-5 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {deliveryNotes.map((note) => (
+                  <tr key={note.id} className="border-b border-gray-800 last:border-0">
+                    <td className="px-5 py-3 text-white font-medium">{String(note.number).padStart(6, '0')}</td>
+                    <td className="px-5 py-3 text-gray-300">{clientsById[note.client_id]?.name ?? '—'}</td>
+                    <td className="px-5 py-3 text-gray-400">{new Date(note.created_at).toLocaleDateString('es-AR')}</td>
+                    <td className="px-5 py-3 text-right">
+                      <button
+                        onClick={() => setPreviewNote(note)}
+                        className="rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-600"
+                      >
+                        Ver remito
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
