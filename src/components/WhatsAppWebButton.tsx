@@ -52,13 +52,13 @@ export function WhatsAppWebButton({ targetRef, fileName, phone, message }: Whats
       <button
         onClick={handleClick}
         disabled={working}
-        className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-500 disabled:opacity-50"
+        className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-green-500 disabled:opacity-50"
       >
         <MessageCircle size={16} />
         {working ? 'Generando PDF...' : 'Abrir WhatsApp Web'}
       </button>
       {errorMessage && <p className="text-xs text-red-500">{errorMessage}</p>}
-      {!digits && <p className="text-xs text-gray-500">Cliente sin teléfono cargado — se abre sin destinatario.</p>}
+      {!digits && <p className="text-xs text-gray-400 dark:text-gray-500">Cliente sin teléfono cargado — se abre sin destinatario.</p>}
     </div>
   );
 }

@@ -46,7 +46,7 @@ export function ShareButton({ targetRef, fileName, shareTitle, shareText }: Shar
       <button
         onClick={handleShare}
         disabled={working}
-        className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-500 disabled:opacity-50"
+        className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500 disabled:opacity-50"
       >
         <Share2 size={16} />
         {working ? 'Generando PDF...' : 'Compartir'}

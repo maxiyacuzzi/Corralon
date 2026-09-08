@@ -23,13 +23,50 @@ no coincide con lo esperado.
 ## Comandos
 
 ```bash
-npm run dev      # servidor de desarrollo
-npm run build    # tsc -b && vite build
-npm run lint     # oxlint
+npm run dev          # servidor de desarrollo
+npm run build        # tsc -b && vite build
+npm run lint         # oxlint
 npm run preview
+npm run test:e2e     # levanta vite en modo test + corre Cypress headless (una vez)
+npm run test:e2e:open  # ídem pero abre el runner interactivo de Cypress
+npm run cy:run        # solo Cypress headless (requiere el server ya corriendo)
+npm run cy:open       # solo el runner interactivo (requiere el server ya corriendo)
+npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (macOS)
 ```
 
-No hay suite de tests configurada todavía.
+## Tests E2E (Cypress)
+
+- `cypress/e2e/*.cy.ts` — un spec por módulo/página (login, dashboard,
+  categorias, proveedores, productos, stock, acopios, clientes,
+  cliente-detalle, presupuestos, remitos, ventas, valores). Cubre todas las
+  páginas de `src/pages/`.
+- Corren contra un backend **mockeado**, no contra el proyecto Supabase real:
+  `cypress/support/mock-supabase.ts` intercepta toda llamada a
+  `**/rest/v1/**` y `**/functions/v1/**` y responde contra una "base de
+  datos" en memoria armada por spec vía `mockSupabase({ tabla: [...] })` /
+  `mockFunction('nombre-de-la-función', { body })`. Replica lo mínimo de
+  PostgREST que usa la app (`eq`/`gte`/`lte`/`in`, `order`, `limit`,
+  `.single()`), pero no es una implementación completa: si una página nueva
+  usa un operador de filtro no soportado, hay que sumarlo ahí, no simularlo
+  a mano en cada spec.
+- `cy.loginAs(path, profile?)` (en `cypress/support/commands.ts`) simula una
+  sesión ya iniciada seteando en `localStorage` la key
+  `sb-test-auth-token` (la que arma `@supabase/supabase-js` a partir de
+  `VITE_SUPABASE_URL=https://test.supabase.co`, ver `.env.test`) antes de
+  que la app monte — así `AuthContext` arranca autenticado sin pasar por el
+  formulario de login ni por Supabase Auth real. El spec `login.cy.ts` es
+  la excepción: ese sí ejercita el formulario real, interceptando
+  `POST **/auth/v1/token?grant_type=password`.
+- `.env.test` fija `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` a valores
+  dummy (no son credenciales reales) — Vite los carga con `--mode test`,
+  que es lo que usan los scripts `test:e2e*`. No pisa `.env` en desarrollo
+  normal (`npm run dev` sigue usando `.env`).
+- CI: `.github/workflows/cypress.yml` corre `npm run test:e2e` en cada push
+  y PR a `main`. No necesita secrets porque el backend está mockeado.
+- Reporte: `cypress-mochawesome-reporter` (configurado en `cypress.config.ts`)
+  genera `cypress/reports/index.html` en cada corrida — un solo archivo
+  autocontenido (screenshots de los fallos embebidas) que se puede abrir
+  directo en el navegador. Carpeta gitignoreada, se regenera en cada run.
 
 ## Estructura
 

@@ -15,12 +15,12 @@ const toneStyles: Record<NonNullable<StatCardProps['tone']>, string> = {
 
 export function StatCard({ label, value, icon: Icon, tone = 'default' }: StatCardProps) {
   return (
-    <div className="rounded-xl border border-gray-700 bg-gray-800 p-5">
+    <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-gray-400">{label}</p>
+        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{label}</p>
         <Icon size={20} className={toneStyles[tone]} />
       </div>
-      <p className="mt-2 text-3xl font-semibold text-white">{value}</p>
+      <p className="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">{value}</p>
     </div>
   );
 }

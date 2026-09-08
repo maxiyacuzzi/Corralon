@@ -59,13 +59,13 @@ export function ClientDetail() {
   }, {});
 
   if (loading) {
-    return <p className="text-gray-400">Cargando cliente...</p>;
+    return <p className="text-gray-500 dark:text-gray-400">Cargando cliente...</p>;
   }
 
   if (!client) {
     return (
       <div className="space-y-4">
-        <p className="text-gray-400">Cliente no encontrado.</p>
+        <p className="text-gray-500 dark:text-gray-400">Cliente no encontrado.</p>
         <Link to="/clientes" className="text-sm text-orange-500 hover:text-orange-400">
           ← Volver a clientes
         </Link>
@@ -75,14 +75,14 @@ export function ClientDetail() {
 
   return (
     <div className="space-y-6">
-      <Link to="/clientes" className="flex items-center gap-2 text-sm text-gray-400 hover:text-white w-fit">
+      <Link to="/clientes" className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white w-fit">
         <ArrowLeft size={16} />
         Volver a clientes
       </Link>
 
-      <div className="rounded-xl border border-gray-700 bg-gray-800 p-6">
-        <h1 className="text-2xl font-semibold text-white">{client.name}</h1>
-        <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-400">
+      <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{client.name}</h1>
+        <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
           <span>CUIT/DNI: {client.tax_id ?? '—'}</span>
           <span>Teléfono: {client.phone ?? '—'}</span>
           <span className={client.account_balance > 0 ? 'text-red-500' : 'text-green-500'}>
@@ -94,7 +94,7 @@ export function ClientDetail() {
       {previewNote ? (
         <div className="space-y-3">
           <div className="print:hidden flex items-center justify-between">
-            <button onClick={() => setPreviewNote(null)} className="text-sm text-gray-400 hover:text-white">
+            <button onClick={() => setPreviewNote(null)} className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
               ← Volver al historial
             </button>
             <div className="flex gap-3">
@@ -118,14 +118,14 @@ export function ClientDetail() {
         </div>
       ) : (
         <>
-          <div className="rounded-xl border border-gray-700 bg-gray-800 overflow-x-auto">
-            <h2 className="px-5 py-4 text-lg font-medium text-white border-b border-gray-700">Remitos</h2>
+          <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-x-auto">
+            <h2 className="px-5 py-4 text-lg font-medium text-gray-900 dark:text-white border-b border-gray-300 dark:border-gray-700">Remitos</h2>
             {deliveryNotes.length === 0 ? (
-              <p className="p-5 text-gray-400">Sin remitos registrados.</p>
+              <p className="p-5 text-gray-500 dark:text-gray-400">Sin remitos registrados.</p>
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-gray-400 border-b border-gray-700">
+                  <tr className="text-left text-gray-500 dark:text-gray-400 border-b border-gray-300 dark:border-gray-700">
                     <th className="px-5 py-3">N.º</th>
                     <th className="px-5 py-3">Fecha</th>
                     <th className="px-5 py-3">Ítems</th>
@@ -136,14 +136,14 @@ export function ClientDetail() {
                 <tbody>
                   {deliveryNotes.map((note) => {
                     return (
-                      <tr key={note.id} className="border-b border-gray-800 last:border-0">
-                        <td className="px-5 py-3 text-white font-medium">
+                      <tr key={note.id} className="border-b border-gray-200 dark:border-gray-800 last:border-0">
+                        <td className="px-5 py-3 text-gray-900 dark:text-white font-medium">
                           {String(note.number).padStart(6, '0')}
                         </td>
-                        <td className="px-5 py-3 text-gray-400">
+                        <td className="px-5 py-3 text-gray-500 dark:text-gray-400">
                           {new Date(note.created_at).toLocaleDateString('es-AR')}
                         </td>
-                        <td className="px-5 py-3 text-gray-300">{note.items.length}</td>
+                        <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{note.items.length}</td>
                         <td className="px-5 py-3">
                           <span
                             className={`rounded-full px-2.5 py-1 text-xs font-medium ${
@@ -158,7 +158,7 @@ export function ClientDetail() {
                         <td className="px-5 py-3 text-right">
                           <button
                             onClick={() => setPreviewNote(note)}
-                            className="rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-600"
+                            className="rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600"
                           >
                             Ver remito
                           </button>
@@ -171,14 +171,14 @@ export function ClientDetail() {
             )}
           </div>
 
-          <div className="rounded-xl border border-gray-700 bg-gray-800 overflow-x-auto">
-            <h2 className="px-5 py-4 text-lg font-medium text-white border-b border-gray-700">Ventas</h2>
+          <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-x-auto">
+            <h2 className="px-5 py-4 text-lg font-medium text-gray-900 dark:text-white border-b border-gray-300 dark:border-gray-700">Ventas</h2>
             {sales.length === 0 ? (
-              <p className="p-5 text-gray-400">Sin ventas registradas.</p>
+              <p className="p-5 text-gray-500 dark:text-gray-400">Sin ventas registradas.</p>
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-gray-400 border-b border-gray-700">
+                  <tr className="text-left text-gray-500 dark:text-gray-400 border-b border-gray-300 dark:border-gray-700">
                     <th className="px-5 py-3">Fecha</th>
                     <th className="px-5 py-3">Monto</th>
                     <th className="px-5 py-3">Formas de pago</th>
@@ -190,12 +190,12 @@ export function ClientDetail() {
                   {sales.map((sale) => {
                     const payments = paymentsBySaleId[sale.id] ?? [];
                     return (
-                    <tr key={sale.id} className="border-b border-gray-800 last:border-0">
-                      <td className="px-5 py-3 text-gray-400">
+                    <tr key={sale.id} className="border-b border-gray-200 dark:border-gray-800 last:border-0">
+                      <td className="px-5 py-3 text-gray-500 dark:text-gray-400">
                         {new Date(sale.created_at).toLocaleDateString('es-AR')}
                       </td>
-                      <td className="px-5 py-3 text-gray-300">${sale.total_amount.toFixed(2)}</td>
-                      <td className="px-5 py-3 text-gray-300">
+                      <td className="px-5 py-3 text-gray-600 dark:text-gray-300">${sale.total_amount.toFixed(2)}</td>
+                      <td className="px-5 py-3 text-gray-600 dark:text-gray-300">
                         {payments.length === 0 ? (
                           paymentLabels[sale.payment_method]
                         ) : (
@@ -214,13 +214,13 @@ export function ClientDetail() {
                       <td className="px-5 py-3">
                         <span
                           className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                            sale.is_formal ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-400'
+                            sale.is_formal ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-500 dark:text-gray-400'
                           }`}
                         >
                           {sale.is_formal ? 'Formal' : 'Informal'}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-gray-300">
+                      <td className="px-5 py-3 text-gray-600 dark:text-gray-300">
                         {notesBySaleId[sale.id]?.length
                           ? notesBySaleId[sale.id].map((note) => String(note.number).padStart(6, '0')).join(', ')
                           : '—'}

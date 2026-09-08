@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState, type FormEvent } from 'react';
-import { Plus, X, PackageMinus } from 'lucide-react';
+import { Plus, Search, X, PackageMinus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { StockpileWithdrawForm } from '../components/StockpileWithdrawForm';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
@@ -56,11 +56,11 @@ function NewStockpileForm({ clients, products, onSaved, onCancel }: NewStockpile
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Cliente</label>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Cliente</label>
           <select
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           >
             {clients.map((client) => (
               <option key={client.id} value={client.id}>
@@ -70,11 +70,11 @@ function NewStockpileForm({ clients, products, onSaved, onCancel }: NewStockpile
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Producto</label>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Producto</label>
           <select
             value={productId}
             onChange={(e) => setProductId(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           >
             {products.map((product) => (
               <option key={product.id} value={product.id}>
@@ -87,7 +87,7 @@ function NewStockpileForm({ clients, products, onSaved, onCancel }: NewStockpile
 
       <div className={showUnitToggle ? 'grid grid-cols-2 gap-4' : ''}>
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
             Cantidad reservada {!showUnitToggle && selectedProduct ? `(${selectedProduct.retail_unit})` : ''}
           </label>
           <input
@@ -96,16 +96,16 @@ function NewStockpileForm({ clients, products, onSaved, onCancel }: NewStockpile
             step="any"
             value={totalReserved}
             onChange={(e) => setTotalReserved(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           />
         </div>
         {showUnitToggle && selectedProduct && (
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Unidad de carga</label>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Unidad de carga</label>
             <select
               value={unit}
               onChange={(e) => setUnit(e.target.value as LoadUnit)}
-              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
             >
               <option value="bulk">{selectedProduct.bulk_unit}</option>
               <option value="retail">{selectedProduct.retail_unit}</option>
@@ -115,8 +115,8 @@ function NewStockpileForm({ clients, products, onSaved, onCancel }: NewStockpile
       </div>
 
       {showUnitToggle && unit === 'bulk' && selectedProduct && totalReserved && (
-        <p className="text-sm text-gray-400">
-          Equivale a <span className="text-white font-medium">{retailQuantity} {selectedProduct.retail_unit}</span>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Equivale a <span className="text-gray-900 dark:text-white font-medium">{retailQuantity} {selectedProduct.retail_unit}</span>
         </p>
       )}
 
@@ -126,14 +126,14 @@ function NewStockpileForm({ clients, products, onSaved, onCancel }: NewStockpile
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800"
+            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={status === 'saving' || !clientId || !productId}
-            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-500 disabled:opacity-50"
+            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500 disabled:opacity-50"
           >
             Crear acopio
           </button>
@@ -152,6 +152,7 @@ export function Stockpiles() {
   const [showForm, setShowForm] = useState(false);
   const [withdrawTarget, setWithdrawTarget] = useState<Stockpile | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     loadData();
@@ -187,14 +188,22 @@ export function Stockpiles() {
   const clientsById = Object.fromEntries(clients.map((c) => [c.id, c]));
   const productsById = Object.fromEntries(products.map((p) => [p.id, p]));
 
+  const filteredStockpiles = stockpiles.filter((stockpile) => {
+    const term = search.trim().toLowerCase();
+    if (!term) return true;
+    const clientName = clientsById[stockpile.client_id]?.name ?? '';
+    const productName = productsById[stockpile.product_id]?.name ?? '';
+    return clientName.toLowerCase().includes(term) || productName.toLowerCase().includes(term);
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-white">Acopios</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Acopios</h1>
         <button
           onClick={() => setShowForm(true)}
           disabled={clients.length === 0 || products.length === 0}
-          className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-500 disabled:opacity-50"
+          className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500 disabled:opacity-50"
         >
           <Plus size={16} />
           Nuevo acopio
@@ -202,10 +211,10 @@ export function Stockpiles() {
       </div>
 
       {showForm && (
-        <div className="rounded-xl border border-gray-700 bg-gray-800 p-6">
+        <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium text-white">Nuevo acopio</h2>
-            <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-white">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white">Nuevo acopio</h2>
+            <button onClick={() => setShowForm(false)} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
               <X size={18} />
             </button>
           </div>
@@ -214,12 +223,12 @@ export function Stockpiles() {
       )}
 
       {withdrawTarget && (
-        <div className="rounded-xl border border-gray-700 bg-gray-800 p-6">
+        <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium text-white">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white">
               Retirar de acopio — {clientsById[withdrawTarget.client_id]?.name}
             </h2>
-            <button onClick={() => setWithdrawTarget(null)} className="text-gray-400 hover:text-white">
+            <button onClick={() => setWithdrawTarget(null)} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
               <X size={18} />
             </button>
           </div>
@@ -232,15 +241,27 @@ export function Stockpiles() {
         </div>
       )}
 
-      <div className="rounded-xl border border-gray-700 bg-gray-800 overflow-x-auto">
+      <div className="relative max-w-sm">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por cliente o producto..."
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 pl-9 pr-3 py-2 text-gray-900 dark:text-white"
+        />
+      </div>
+
+      <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-x-auto">
         {loading ? (
-          <p className="p-5 text-gray-400">Cargando acopios...</p>
+          <p className="p-5 text-gray-500 dark:text-gray-400">Cargando acopios...</p>
         ) : stockpiles.length === 0 ? (
-          <p className="p-5 text-gray-400">No hay acopios cargados todavía.</p>
+          <p className="p-5 text-gray-500 dark:text-gray-400">No hay acopios cargados todavía.</p>
+        ) : filteredStockpiles.length === 0 ? (
+          <p className="p-5 text-gray-500 dark:text-gray-400">Ningún acopio coincide con la búsqueda.</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-400 border-b border-gray-700">
+              <tr className="text-left text-gray-500 dark:text-gray-400 border-b border-gray-300 dark:border-gray-700">
                 <th className="px-5 py-3">Cliente</th>
                 <th className="px-5 py-3">Producto</th>
                 <th className="px-5 py-3">Reservado</th>
@@ -250,23 +271,23 @@ export function Stockpiles() {
               </tr>
             </thead>
             <tbody>
-              {stockpiles.map((stockpile) => {
+              {filteredStockpiles.map((stockpile) => {
                 const product = productsById[stockpile.product_id];
                 return (
                 <Fragment key={stockpile.id}>
                   <tr
-                    className="border-b border-gray-800 last:border-0 cursor-pointer hover:bg-gray-800/60"
+                    className="border-b border-gray-200 dark:border-gray-800 last:border-0 cursor-pointer hover:bg-gray-100/60 dark:hover:bg-gray-800/60"
                     onClick={() => setExpandedId(expandedId === stockpile.id ? null : stockpile.id)}
                   >
-                    <td className="px-5 py-3 text-white font-medium">{clientsById[stockpile.client_id]?.name ?? '—'}</td>
-                    <td className="px-5 py-3 text-gray-300">{product?.name ?? '—'}</td>
-                    <td className="px-5 py-3 text-gray-300">
+                    <td className="px-5 py-3 text-gray-900 dark:text-white font-medium">{clientsById[stockpile.client_id]?.name ?? '—'}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{product?.name ?? '—'}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">
                       {product ? formatStock(product, stockpile.total_reserved) : stockpile.total_reserved}
                     </td>
-                    <td className="px-5 py-3 text-gray-300">
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">
                       {product ? formatStock(product, stockpile.total_withdrawn) : stockpile.total_withdrawn}
                     </td>
-                    <td className="px-5 py-3 text-white font-medium">
+                    <td className="px-5 py-3 text-gray-900 dark:text-white font-medium">
                       {product ? formatStock(product, stockpile.remaining) : stockpile.remaining}
                     </td>
                     <td className="px-5 py-3 text-right">
@@ -276,7 +297,7 @@ export function Stockpiles() {
                           setWithdrawTarget(stockpile);
                         }}
                         disabled={stockpile.remaining <= 0}
-                        className="flex items-center gap-1.5 rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-600 disabled:opacity-40 ml-auto"
+                        className="flex items-center gap-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-40 ml-auto"
                       >
                         <PackageMinus size={14} />
                         Retirar
@@ -284,17 +305,17 @@ export function Stockpiles() {
                     </td>
                   </tr>
                   {expandedId === stockpile.id && (
-                    <tr className="bg-gray-900/40">
+                    <tr className="bg-gray-50/40 dark:bg-gray-900/40">
                       <td colSpan={6} className="px-5 py-4">
-                        <p className="text-sm text-gray-400 mb-2">Historial de retiros</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Historial de retiros</p>
                         {withdrawals.filter((w) => w.reference_id === stockpile.id).length === 0 ? (
-                          <p className="text-sm text-gray-500">Sin retiros registrados.</p>
+                          <p className="text-sm text-gray-400 dark:text-gray-500">Sin retiros registrados.</p>
                         ) : (
                           <ul className="space-y-1">
                             {withdrawals
                               .filter((w) => w.reference_id === stockpile.id)
                               .map((w) => (
-                                <li key={w.id} className="flex justify-between text-sm text-gray-300">
+                                <li key={w.id} className="flex justify-between text-sm text-gray-600 dark:text-gray-300">
                                   <span>{new Date(w.created_at).toLocaleString('es-AR')}</span>
                                   <span>{product ? formatStock(product, Math.abs(w.quantity)) : Math.abs(w.quantity)}</span>
                                 </li>

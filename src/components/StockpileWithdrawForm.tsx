@@ -49,13 +49,13 @@ export function StockpileWithdrawForm({ stockpile, product, onSaved, onCancel }:
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <p className="text-sm text-gray-400">
-        Saldo disponible: <span className="text-white font-medium">{formatStock(product, stockpile.remaining)}</span>
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        Saldo disponible: <span className="text-gray-900 dark:text-white font-medium">{formatStock(product, stockpile.remaining)}</span>
       </p>
 
       <div className={showUnitToggle ? 'grid grid-cols-2 gap-4' : ''}>
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
             Cantidad a retirar {!showUnitToggle ? `(${product.retail_unit})` : ''}
           </label>
           <input
@@ -64,16 +64,16 @@ export function StockpileWithdrawForm({ stockpile, product, onSaved, onCancel }:
             step="any"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           />
         </div>
         {showUnitToggle && (
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Unidad</label>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Unidad</label>
             <select
               value={unit}
               onChange={(e) => setUnit(e.target.value as LoadUnit)}
-              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
             >
               <option value="bulk">{product.bulk_unit}</option>
               <option value="retail">{product.retail_unit}</option>
@@ -83,8 +83,8 @@ export function StockpileWithdrawForm({ stockpile, product, onSaved, onCancel }:
       </div>
 
       {showUnitToggle && unit === 'bulk' && quantity && (
-        <p className="text-sm text-gray-400">
-          Equivale a <span className="text-white font-medium">{retailQuantity} {product.retail_unit}</span>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Equivale a <span className="text-gray-900 dark:text-white font-medium">{retailQuantity} {product.retail_unit}</span>
         </p>
       )}
 
@@ -96,14 +96,14 @@ export function StockpileWithdrawForm({ stockpile, product, onSaved, onCancel }:
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800"
+            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={status === 'saving' || retailQuantity <= 0 || exceedsRemaining}
-            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-500 disabled:opacity-50"
+            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500 disabled:opacity-50"
           >
             Confirmar retiro
           </button>

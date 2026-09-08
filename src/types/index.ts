@@ -24,6 +24,7 @@ export interface Product {
 export interface Category {
   id: string;
   name: string;
+  parent_id: string | null;
   created_at: string;
 }
 
@@ -140,6 +141,21 @@ export interface Check {
   due_date: string; // cuándo se cobra
   is_deferred: boolean; // cheque de pago diferido vs. cheque común
   status: CheckStatus;
+  notes: string | null;
+  created_at: string;
+}
+
+export type OwnCheckStatus = 'pending' | 'covered' | 'rejected';
+
+export interface OwnCheck {
+  id: string;
+  payee: string; // a quién se lo dimos
+  check_number: string;
+  bank: string;
+  amount: number;
+  issue_date: string; // cuándo lo emitimos
+  due_date: string; // cuándo hay que cubrirlo
+  status: OwnCheckStatus;
   notes: string | null;
   created_at: string;
 }

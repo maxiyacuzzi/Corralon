@@ -7,7 +7,12 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cy:open": "cypress open",
+    "cy:run": "cypress run",
+    "test:e2e": "start-server-and-test 'vite --mode test' http://localhost:5173 cy:run",
+    "test:e2e:open": "start-server-and-test 'vite --mode test' http://localhost:5173 cy:open",
+    "test:e2e:report": "npm run test:e2e; open cypress/reports/index.html"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.109.0",
@@ -25,7 +30,10 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.1.0",
+    "cypress": "^15.21.1",
+    "cypress-mochawesome-reporter": "^3.8.4",
     "oxlint": "^1.79.0",
+    "start-server-and-test": "^2.1.5",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.2.2"

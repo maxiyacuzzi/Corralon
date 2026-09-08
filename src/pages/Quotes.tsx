@@ -17,7 +17,7 @@ const statusLabels: Record<Quote['status'], string> = {
 };
 
 const statusStyles: Record<Quote['status'], string> = {
-  draft: 'bg-gray-500/10 text-gray-400',
+  draft: 'bg-gray-500/10 text-gray-500 dark:text-gray-400',
   approved: 'bg-green-500/10 text-green-500',
   expired: 'bg-red-500/10 text-red-500',
   converted: 'bg-orange-500/10 text-orange-500',
@@ -90,11 +90,11 @@ function NewQuoteForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Cliente</label>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Cliente</label>
           <select
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           >
             {clients.map((client) => (
               <option key={client.id} value={client.id}>
@@ -104,18 +104,18 @@ function NewQuoteForm({
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Válido hasta</label>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Válido hasta</label>
           <input
             type="date"
             value={validUntil}
             onChange={(e) => setValidUntil(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           />
         </div>
       </div>
 
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-300">Ítems</label>
+        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Ítems</label>
         {items.map((item, index) => (
           <div key={index} className="flex gap-2 items-center">
             <select
@@ -124,7 +124,7 @@ function NewQuoteForm({
                 const product = products.find((p) => p.id === e.target.value);
                 updateItem(index, { product_id: e.target.value, unit_price: product?.price ?? item.unit_price });
               }}
-              className="flex-1 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+              className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
             >
               {products.map((product) => (
                 <option key={product.id} value={product.id}>
@@ -137,7 +137,7 @@ function NewQuoteForm({
               step="any"
               value={item.quantity}
               onChange={(e) => updateItem(index, { quantity: Number(e.target.value) })}
-              className="w-24 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+              className="w-24 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
               placeholder="Cant."
             />
             <input
@@ -145,14 +145,14 @@ function NewQuoteForm({
               step="any"
               value={item.unit_price}
               onChange={(e) => updateItem(index, { unit_price: Number(e.target.value) })}
-              className="w-28 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+              className="w-28 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
               placeholder="Precio"
             />
             <button
               type="button"
               onClick={() => removeItem(index)}
               disabled={items.length === 1}
-              className="text-gray-400 hover:text-red-500 disabled:opacity-30"
+              className="text-gray-500 dark:text-gray-400 hover:text-red-500 disabled:opacity-30"
             >
               <Trash2 size={16} />
             </button>
@@ -165,7 +165,7 @@ function NewQuoteForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
             Descuento por pago en efectivo (%)
           </label>
           <input
@@ -175,12 +175,12 @@ function NewQuoteForm({
             step="any"
             value={discountPercent}
             onChange={(e) => setDiscountPercent(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           />
         </div>
-        <div className="flex flex-col justify-end text-sm text-gray-400">
+        <div className="flex flex-col justify-end text-sm text-gray-500 dark:text-gray-400">
           <p>Subtotal: ${quoteSubtotal(items).toFixed(2)}</p>
-          <p className="text-white font-medium">
+          <p className="text-gray-900 dark:text-white font-medium">
             Total con descuento: ${quoteTotal(items, Number(discountPercent) || 0).toFixed(2)}
           </p>
         </div>
@@ -192,14 +192,14 @@ function NewQuoteForm({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800"
+            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={status === 'saving' || !clientId}
-            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-500 disabled:opacity-50"
+            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500 disabled:opacity-50"
           >
             Guardar presupuesto
           </button>
@@ -279,11 +279,11 @@ export function Quotes() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-white">Presupuestos</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Presupuestos</h1>
         <button
           onClick={() => setShowForm(true)}
           disabled={clients.length === 0 || products.length === 0}
-          className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-500 disabled:opacity-50"
+          className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500 disabled:opacity-50"
         >
           <Plus size={16} />
           Nuevo presupuesto
@@ -291,12 +291,12 @@ export function Quotes() {
       </div>
 
       <div className="relative max-w-sm">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por cliente..."
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 pl-9 pr-3 py-2 text-white"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 pl-9 pr-3 py-2 text-gray-900 dark:text-white"
         />
       </div>
 
@@ -305,7 +305,7 @@ export function Quotes() {
       {previewQuote && (
         <div className="space-y-3">
           <div className="print:hidden flex items-center justify-between">
-            <button onClick={() => setPreviewQuote(null)} className="text-sm text-gray-400 hover:text-white">
+            <button onClick={() => setPreviewQuote(null)} className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
               ← Volver al listado
             </button>
             <div className="flex gap-3">
@@ -334,10 +334,10 @@ export function Quotes() {
       )}
 
       {!previewQuote && showForm && (
-        <div className="rounded-xl border border-gray-700 bg-gray-800 p-6">
+        <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium text-white">Nuevo presupuesto</h2>
-            <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-white">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white">Nuevo presupuesto</h2>
+            <button onClick={() => setShowForm(false)} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
               <X size={18} />
             </button>
           </div>
@@ -346,17 +346,17 @@ export function Quotes() {
       )}
 
       {!previewQuote && (
-      <div className="rounded-xl border border-gray-700 bg-gray-800 overflow-x-auto">
+      <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-x-auto">
         {loading ? (
-          <p className="p-5 text-gray-400">Cargando presupuestos...</p>
+          <p className="p-5 text-gray-500 dark:text-gray-400">Cargando presupuestos...</p>
         ) : quotes.length === 0 ? (
-          <p className="p-5 text-gray-400">No hay presupuestos cargados todavía.</p>
+          <p className="p-5 text-gray-500 dark:text-gray-400">No hay presupuestos cargados todavía.</p>
         ) : filteredQuotes.length === 0 ? (
-          <p className="p-5 text-gray-400">Ningún presupuesto coincide con la búsqueda.</p>
+          <p className="p-5 text-gray-500 dark:text-gray-400">Ningún presupuesto coincide con la búsqueda.</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-400 border-b border-gray-700">
+              <tr className="text-left text-gray-500 dark:text-gray-400 border-b border-gray-300 dark:border-gray-700">
                 <th className="px-5 py-3">Cliente</th>
                 <th className="px-5 py-3">Total</th>
                 <th className="px-5 py-3">Válido hasta</th>
@@ -368,9 +368,9 @@ export function Quotes() {
               {filteredQuotes.map((quote) => {
                 const total = quoteTotal(quote.items, quote.discount_percent);
                 return (
-                  <tr key={quote.id} className="border-b border-gray-800 last:border-0">
-                    <td className="px-5 py-3 text-white font-medium">{clientsById[quote.client_id]?.name ?? '—'}</td>
-                    <td className="px-5 py-3 text-gray-300">
+                  <tr key={quote.id} className="border-b border-gray-200 dark:border-gray-800 last:border-0">
+                    <td className="px-5 py-3 text-gray-900 dark:text-white font-medium">{clientsById[quote.client_id]?.name ?? '—'}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">
                       ${total.toFixed(2)}
                       {quote.discount_percent > 0 && (
                         <span className="ml-2 rounded-full bg-orange-500/10 px-2 py-0.5 text-xs font-medium text-orange-500">
@@ -378,7 +378,7 @@ export function Quotes() {
                         </span>
                       )}
                     </td>
-                    <td className="px-5 py-3 text-gray-300">
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">
                       {quote.valid_until ? new Date(quote.valid_until).toLocaleDateString('es-AR') : '—'}
                     </td>
                     <td className="px-5 py-3">
@@ -390,14 +390,14 @@ export function Quotes() {
                       <div className="flex flex-col items-end gap-2">
                         <button
                           onClick={() => setPreviewQuote(quote)}
-                          className="rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-600"
+                          className="rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600"
                         >
                           Ver
                         </button>
                         {quote.status === 'draft' && (
                           <button
                             onClick={() => updateStatus(quote, 'approved')}
-                            className="rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-600"
+                            className="rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600"
                           >
                             Aprobar
                           </button>
@@ -407,14 +407,14 @@ export function Quotes() {
                             <button
                               onClick={() => convertQuote(quote, 'stockpile')}
                               disabled={convertingId === quote.id}
-                              className="rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-600 disabled:opacity-50"
+                              className="rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50"
                             >
                               Convertir a acopio
                             </button>
                             <button
                               onClick={() => convertQuote(quote, 'sale')}
                               disabled={convertingId === quote.id}
-                              className="rounded-lg bg-orange-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-500 disabled:opacity-50"
+                              className="rounded-lg bg-orange-600 px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-white hover:bg-orange-500 disabled:opacity-50"
                             >
                               Convertir a venta directa
                             </button>

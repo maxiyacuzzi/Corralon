@@ -69,14 +69,14 @@ function NewDeliveryNoteForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Cliente</label>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Cliente</label>
           <select
             value={clientId}
             onChange={(e) => {
               setClientId(e.target.value);
               setStockpileId('');
             }}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           >
             {clients.map((client) => (
               <option key={client.id} value={client.id}>
@@ -86,11 +86,11 @@ function NewDeliveryNoteForm({
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Contra acopio (opcional)</label>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Contra acopio (opcional)</label>
           <select
             value={stockpileId}
             onChange={(e) => setStockpileId(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           >
             <option value="">Venta directa</option>
             {clientStockpiles.map((stockpile) => (
@@ -103,13 +103,13 @@ function NewDeliveryNoteForm({
       </div>
 
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-300">Ítems</label>
+        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Ítems</label>
         {items.map((item, index) => (
           <div key={index} className="flex gap-2 items-center">
             <select
               value={item.product_id}
               onChange={(e) => updateItem(index, { product_id: e.target.value })}
-              className="flex-1 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+              className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
             >
               {products.map((product) => (
                 <option key={product.id} value={product.id}>
@@ -122,14 +122,14 @@ function NewDeliveryNoteForm({
               step="any"
               value={item.quantity}
               onChange={(e) => updateItem(index, { quantity: Number(e.target.value) })}
-              className="w-24 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+              className="w-24 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
               placeholder="Cant."
             />
             <button
               type="button"
               onClick={() => removeItem(index)}
               disabled={items.length === 1}
-              className="text-gray-400 hover:text-red-500 disabled:opacity-30"
+              className="text-gray-500 dark:text-gray-400 hover:text-red-500 disabled:opacity-30"
             >
               <Trash2 size={16} />
             </button>
@@ -146,14 +146,14 @@ function NewDeliveryNoteForm({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800"
+            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={status === 'saving' || !clientId}
-            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-500 disabled:opacity-50"
+            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500 disabled:opacity-50"
           >
             Generar remito
           </button>
@@ -216,11 +216,11 @@ export function DeliveryNotes() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-white">Remitos</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Remitos</h1>
         <button
           onClick={() => setShowForm(true)}
           disabled={clients.length === 0 || products.length === 0}
-          className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-500 disabled:opacity-50"
+          className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500 disabled:opacity-50"
         >
           <Plus size={16} />
           Nuevo remito
@@ -228,20 +228,20 @@ export function DeliveryNotes() {
       </div>
 
       <div className="relative max-w-sm">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por cliente o N.º de remito..."
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 pl-9 pr-3 py-2 text-white"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 pl-9 pr-3 py-2 text-gray-900 dark:text-white"
         />
       </div>
 
       {showForm && (
-        <div className="rounded-xl border border-gray-700 bg-gray-800 p-6">
+        <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium text-white">Nuevo remito</h2>
-            <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-white">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white">Nuevo remito</h2>
+            <button onClick={() => setShowForm(false)} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
               <X size={18} />
             </button>
           </div>
@@ -258,7 +258,7 @@ export function DeliveryNotes() {
       {previewNote && (
         <div className="space-y-3">
           <div className="print:hidden flex items-center justify-between">
-            <button onClick={() => setPreviewNote(null)} className="text-sm text-gray-400 hover:text-white">
+            <button onClick={() => setPreviewNote(null)} className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
               ← Volver al listado
             </button>
             <div className="flex gap-3">
@@ -287,17 +287,17 @@ export function DeliveryNotes() {
       )}
 
       {!previewNote && (
-        <div className="rounded-xl border border-gray-700 bg-gray-800 overflow-x-auto">
+        <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-x-auto">
           {loading ? (
-            <p className="p-5 text-gray-400">Cargando remitos...</p>
+            <p className="p-5 text-gray-500 dark:text-gray-400">Cargando remitos...</p>
           ) : deliveryNotes.length === 0 ? (
-            <p className="p-5 text-gray-400">No hay remitos generados todavía.</p>
+            <p className="p-5 text-gray-500 dark:text-gray-400">No hay remitos generados todavía.</p>
           ) : filteredNotes.length === 0 ? (
-            <p className="p-5 text-gray-400">Ningún remito coincide con la búsqueda.</p>
+            <p className="p-5 text-gray-500 dark:text-gray-400">Ningún remito coincide con la búsqueda.</p>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-400 border-b border-gray-700">
+                <tr className="text-left text-gray-500 dark:text-gray-400 border-b border-gray-300 dark:border-gray-700">
                   <th className="px-5 py-3">N.º</th>
                   <th className="px-5 py-3">Cliente</th>
                   <th className="px-5 py-3">Fecha</th>
@@ -307,10 +307,10 @@ export function DeliveryNotes() {
               </thead>
               <tbody>
                 {filteredNotes.map((note) => (
-                  <tr key={note.id} className="border-b border-gray-800 last:border-0">
-                    <td className="px-5 py-3 text-white font-medium">{String(note.number).padStart(6, '0')}</td>
-                    <td className="px-5 py-3 text-gray-300">{clientsById[note.client_id]?.name ?? '—'}</td>
-                    <td className="px-5 py-3 text-gray-400">{new Date(note.created_at).toLocaleDateString('es-AR')}</td>
+                  <tr key={note.id} className="border-b border-gray-200 dark:border-gray-800 last:border-0">
+                    <td className="px-5 py-3 text-gray-900 dark:text-white font-medium">{String(note.number).padStart(6, '0')}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{clientsById[note.client_id]?.name ?? '—'}</td>
+                    <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{new Date(note.created_at).toLocaleDateString('es-AR')}</td>
                     <td className="px-5 py-3">
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs font-medium ${
@@ -325,7 +325,7 @@ export function DeliveryNotes() {
                     <td className="px-5 py-3 text-right">
                       <button
                         onClick={() => setPreviewNote(note)}
-                        className="rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-600"
+                        className="rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600"
                       >
                         Ver remito
                       </button>

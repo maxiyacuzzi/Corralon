@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import type { SaveStatus } from './SaveStatusIndicator';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
+import { orderCategoriesByHierarchy } from '../lib/categories';
 import type { Category, Product, Supplier } from '../types';
 
 interface ProductFormProps {
@@ -23,6 +24,7 @@ export function ProductForm({ product, categories, suppliers, onSaved, onCancel 
   const [supplierId, setSupplierId] = useState(product?.supplier_id ?? '');
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string>();
+  const orderedCategories = orderCategoriesByHierarchy(categories);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -57,38 +59,38 @@ export function ProductForm({ product, categories, suppliers, onSaved, onCancel 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">Nombre</label>
+        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Nombre</label>
         <input
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           placeholder="Cemento Loma Negra"
         />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Categoría</label>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Categoría</label>
           <select
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           >
             <option value="">Sin categoría</option>
-            {categories.map((category) => (
+            {orderedCategories.map(({ category, depth }) => (
               <option key={category.id} value={category.id}>
-                {category.name}
+                {depth > 0 ? `  ↳ ${category.name}` : category.name}
               </option>
             ))}
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Proveedor</label>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Proveedor</label>
           <select
             value={supplierId}
             onChange={(e) => setSupplierId(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           >
             <option value="">Sin proveedor</option>
             {suppliers.map((supplier) => (
@@ -102,29 +104,29 @@ export function ProductForm({ product, categories, suppliers, onSaved, onCancel 
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Unidad a granel</label>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Unidad a granel</label>
           <input
             required
             value={bulkUnit}
             onChange={(e) => setBulkUnit(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
             placeholder="bolsa"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Unidad minorista</label>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Unidad minorista</label>
           <input
             required
             value={retailUnit}
             onChange={(e) => setRetailUnit(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
             placeholder="kg"
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">
+        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
           Factor de conversión (retail por 1 bulk)
         </label>
         <input
@@ -133,30 +135,30 @@ export function ProductForm({ product, categories, suppliers, onSaved, onCancel 
           step="any"
           value={conversionFactor}
           onChange={(e) => setConversionFactor(e.target.value)}
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           placeholder="25"
         />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Alerta de stock mínimo</label>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Alerta de stock mínimo</label>
           <input
             type="number"
             step="any"
             value={minStockAlert}
             onChange={(e) => setMinStockAlert(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Precio</label>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Precio</label>
           <input
             type="number"
             step="any"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           />
         </div>
       </div>
@@ -167,14 +169,14 @@ export function ProductForm({ product, categories, suppliers, onSaved, onCancel 
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800"
+            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={status === 'saving'}
-            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-500 disabled:opacity-50"
+            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500 disabled:opacity-50"
           >
             {product ? 'Guardar cambios' : 'Guardar producto'}
           </button>
