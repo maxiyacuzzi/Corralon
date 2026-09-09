@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
+import { bulkToRetail } from '../lib/units';
 import type { Product, StockMovement } from '../types';
 import type { SaveStatus } from './SaveStatusIndicator';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
@@ -15,19 +16,31 @@ const MOVEMENT_TYPES: { value: StockMovement['type']; label: string }[] = [
   { value: 'adjustment', label: 'Ajuste manual' },
 ];
 
+type LoadUnit = 'bulk' | 'retail';
+
 export function StockMovementForm({ products, onSaved, onCancel }: StockMovementFormProps) {
   const [productId, setProductId] = useState(products[0]?.id ?? '');
   const [type, setType] = useState<StockMovement['type']>('purchase_in');
+  const [unit, setUnit] = useState<LoadUnit>('bulk');
   const [quantity, setQuantity] = useState('');
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string>();
+
+  const selectedProduct = products.find((p) => p.id === productId);
+  const showUnitToggle = !!selectedProduct && selectedProduct.bulk_unit !== selectedProduct.retail_unit;
+
+  const enteredQuantity = Number(quantity) || 0;
+  const retailQuantity =
+    showUnitToggle && selectedProduct && unit === 'bulk'
+      ? bulkToRetail(selectedProduct, enteredQuantity)
+      : enteredQuantity;
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setStatus('saving');
     setErrorMessage(undefined);
 
-    const signedQuantity = type === 'adjustment' ? Number(quantity) : Math.abs(Number(quantity));
+    const signedQuantity = type === 'adjustment' ? retailQuantity : Math.abs(retailQuantity);
 
     const { data, error } = await supabase.functions.invoke('register-stock-movement', {
       body: {
@@ -51,11 +64,11 @@ export function StockMovementForm({ products, onSaved, onCancel }: StockMovement
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">Producto</label>
+        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Producto</label>
         <select
           value={productId}
           onChange={(e) => setProductId(e.target.value)}
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
         >
           {products.map((product) => (
             <option key={product.id} value={product.id}>
@@ -66,11 +79,11 @@ export function StockMovementForm({ products, onSaved, onCancel }: StockMovement
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">Tipo de movimiento</label>
+        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Tipo de movimiento</label>
         <select
           value={type}
           onChange={(e) => setType(e.target.value as StockMovement['type'])}
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
         >
           {MOVEMENT_TYPES.map((option) => (
             <option key={option.value} value={option.value}>
@@ -80,19 +93,40 @@ export function StockMovementForm({ products, onSaved, onCancel }: StockMovement
         </select>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">
-          Cantidad {type === 'adjustment' ? '(puede ser negativa)' : ''}
-        </label>
-        <input
-          required
-          type="number"
-          step="any"
-          value={quantity}
-          onChange={(e) => setQuantity(e.target.value)}
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-        />
+      <div className={showUnitToggle ? 'grid grid-cols-2 gap-4' : ''}>
+        <div>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
+            Cantidad {type === 'adjustment' ? '(puede ser negativa)' : ''}
+          </label>
+          <input
+            required
+            type="number"
+            step="any"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
+          />
+        </div>
+        {showUnitToggle && selectedProduct && (
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Unidad de carga</label>
+            <select
+              value={unit}
+              onChange={(e) => setUnit(e.target.value as LoadUnit)}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
+            >
+              <option value="bulk">{selectedProduct.bulk_unit}</option>
+              <option value="retail">{selectedProduct.retail_unit}</option>
+            </select>
+          </div>
+        )}
       </div>
+
+      {showUnitToggle && unit === 'bulk' && selectedProduct && quantity && (
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Equivale a <span className="text-gray-900 dark:text-white font-medium">{retailQuantity} {selectedProduct.retail_unit}</span>
+        </p>
+      )}
 
       <div className="flex items-center justify-between pt-2">
         <SaveStatusIndicator status={status} errorMessage={errorMessage} />
@@ -100,14 +134,14 @@ export function StockMovementForm({ products, onSaved, onCancel }: StockMovement
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800"
+            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={status === 'saving' || !productId}
-            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-500 disabled:opacity-50"
+            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500 disabled:opacity-50"
           >
             Registrar movimiento
           </button>

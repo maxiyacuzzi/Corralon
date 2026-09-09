@@ -1,7 +1,10 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { corsHeaders } from '../_shared/cors.ts'
 
 serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
   const { stockpile_id, quantity } = await req.json()
   const authHeader = req.headers.get('Authorization')!
 
@@ -12,7 +15,12 @@ serve(async (req) => {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401 })
+  if (!user) {
+    return new Response(JSON.stringify({ error: 'No autorizado' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
 
   const { data: stockpile } = await supabase
     .from('stockpiles')
@@ -20,13 +28,18 @@ serve(async (req) => {
     .eq('id', stockpile_id)
     .single()
 
-  if (!stockpile) return new Response(JSON.stringify({ error: 'Acopio no encontrado' }), { status: 404 })
+  if (!stockpile) {
+    return new Response(JSON.stringify({ error: 'Acopio no encontrado' }), {
+      status: 404,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
 
   const remaining = stockpile.total_reserved - stockpile.total_withdrawn
   if (quantity > remaining) {
     return new Response(
       JSON.stringify({ error: `Saldo de acopio insuficiente. Disponible: ${remaining}` }),
-      { status: 400 }
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 
@@ -47,6 +60,6 @@ serve(async (req) => {
   })
 
   return new Response(JSON.stringify({ success: true, remaining: remaining - quantity }), {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 })

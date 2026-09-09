@@ -4,7 +4,7 @@ export function SaveStatusIndicator({ status, errorMessage }: { status: SaveStat
   if (status === 'idle') return null;
 
   const config: Record<Exclude<SaveStatus, 'idle'>, { text: string; className: string }> = {
-    saving: { text: 'Guardando...', className: 'text-gray-400' },
+    saving: { text: 'Guardando...', className: 'text-gray-500 dark:text-gray-400' },
     saved: { text: 'Guardado', className: 'text-green-500' },
     error: { text: errorMessage ?? 'Error de conexión', className: 'text-red-500' },
   };

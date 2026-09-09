@@ -13,6 +13,15 @@ dist-ssr
 *.local
 .env
 
+# Supabase CLI local state
+supabase/.temp/
+
+# Cypress
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/
+cypress/reports/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
