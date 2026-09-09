@@ -70,7 +70,7 @@ describe('Productos', () => {
     cy.wait('@supabaseRest');
     cy.contains('h2', 'Editar producto').should('not.exist');
     cy.contains('tr', 'Cemento Loma Negra').within(() => {
-      cy.contains('$4200.00');
+      cy.contains('$4.200,00');
     });
   });
 

@@ -8,6 +8,7 @@ import { WhatsAppWebButton } from '../components/WhatsAppWebButton';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
 import { useAuth } from '../context/AuthContext';
+import { formatCurrency } from '../lib/format';
 import type { Client, Product, Profile, Quote, QuoteItem } from '../types';
 
 const statusLabels: Record<Quote['status'], string> = {
@@ -182,9 +183,9 @@ function NewQuoteForm({
           />
         </div>
         <div className="flex flex-col justify-end text-sm text-gray-500 dark:text-gray-400">
-          <p>Subtotal: ${quoteSubtotal(items).toFixed(2)}</p>
+          <p>Subtotal: {formatCurrency(quoteSubtotal(items))}</p>
           <p className="text-gray-900 dark:text-white font-medium">
-            Total con descuento: ${quoteTotal(items, Number(discountPercent) || 0).toFixed(2)}
+            Total con descuento: {formatCurrency(quoteTotal(items, Number(discountPercent) || 0))}
           </p>
         </div>
       </div>
@@ -379,7 +380,7 @@ export function Quotes() {
                   <tr key={quote.id} className="border-b border-gray-200 dark:border-gray-800 last:border-0">
                     <td className="px-5 py-3 text-gray-900 dark:text-white font-medium">{clientsById[quote.client_id]?.name ?? '—'}</td>
                     <td className="px-5 py-3 text-gray-600 dark:text-gray-300">
-                      ${total.toFixed(2)}
+                      {formatCurrency(total)}
                       {quote.discount_percent > 0 && (
                         <span className="ml-2 rounded-full bg-orange-500/10 px-2 py-0.5 text-xs font-medium text-orange-500">
                           -{quote.discount_percent}% efectivo

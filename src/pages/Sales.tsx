@@ -8,6 +8,7 @@ import { WhatsAppWebButton } from '../components/WhatsAppWebButton';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
 import { paymentLabels } from '../lib/payments';
+import { formatCurrency } from '../lib/format';
 import type { Client, DeliveryNote, PaymentMethod, Product, Profile, Sale, SaleDeliveryNote, SalePayment } from '../types';
 
 // El remito no guarda precio: se factura al precio ACTUAL del producto, no al que tenía al entregarse.
@@ -169,14 +170,14 @@ function NewSaleForm({
                   Remito N.º {String(note.number).padStart(6, '0')} —{' '}
                   {new Date(note.created_at).toLocaleDateString('es-AR')}
                 </span>
-                <span className="text-gray-900 dark:text-white font-medium">${deliveryNoteTotal(note, productsById).toFixed(2)}</span>
+                <span className="text-gray-900 dark:text-white font-medium">{formatCurrency(deliveryNoteTotal(note, productsById))}</span>
               </label>
             ))}
           </div>
         )}
         {selectedNoteIds.length > 0 && (
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            Total de remitos seleccionados (a precio actual): <span className="text-gray-900 dark:text-white font-medium">${selectedNotesTotal.toFixed(2)}</span> — repartilo entre las formas de pago de abajo.
+            Total de remitos seleccionados (a precio actual): <span className="text-gray-900 dark:text-white font-medium">{formatCurrency(selectedNotesTotal)}</span> — repartilo entre las formas de pago de abajo.
           </p>
         )}
       </div>
@@ -235,7 +236,7 @@ function NewSaleForm({
 
             {line.method === 'cash' && (Number(line.discountPercent) || 0) > 0 && (
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Monto final de esta línea: <span className="text-gray-900 dark:text-white font-medium">${paymentLineFinalAmount(line).toFixed(2)}</span>
+                Monto final de esta línea: <span className="text-gray-900 dark:text-white font-medium">{formatCurrency(paymentLineFinalAmount(line))}</span>
               </p>
             )}
 
@@ -287,7 +288,7 @@ function NewSaleForm({
         </button>
       </div>
 
-      <p className="text-right text-gray-900 dark:text-white font-medium">Total: ${totalFinal.toFixed(2)}</p>
+      <p className="text-right text-gray-900 dark:text-white font-medium">Total: {formatCurrency(totalFinal)}</p>
 
       <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
         <input type="checkbox" checked={isFormal} onChange={(e) => setIsFormal(e.target.checked)} />
@@ -489,7 +490,7 @@ export function Sales() {
                 return (
                   <tr key={sale.id} className="border-b border-gray-200 dark:border-gray-800 last:border-0">
                     <td className="px-5 py-3 text-gray-900 dark:text-white font-medium">{clientsById[sale.client_id]?.name ?? '—'}</td>
-                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">${sale.total_amount.toFixed(2)}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{formatCurrency(sale.total_amount)}</td>
                     <td className="px-5 py-3 text-gray-600 dark:text-gray-300">
                       {payments.length === 0 ? (
                         paymentLabels[sale.payment_method]
@@ -497,7 +498,7 @@ export function Sales() {
                         <div className="flex flex-col gap-0.5">
                           {payments.map((payment) => (
                             <span key={payment.id}>
-                              {paymentLabels[payment.method]}: ${payment.amount.toFixed(2)}
+                              {paymentLabels[payment.method]}: {formatCurrency(payment.amount)}
                               {payment.discount_percent > 0 && (
                                 <span className="ml-1 text-xs text-orange-500">-{payment.discount_percent}%</span>
                               )}

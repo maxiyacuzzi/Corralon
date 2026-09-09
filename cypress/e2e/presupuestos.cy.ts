@@ -29,7 +29,7 @@ describe('Presupuestos', () => {
 
     cy.contains('h1', 'Presupuestos').should('be.visible');
     cy.contains('tr', 'Juan Pérez').within(() => {
-      cy.contains('$35000.00');
+      cy.contains('$35.000,00');
       cy.contains('Borrador');
     });
   });

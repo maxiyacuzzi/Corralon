@@ -4,6 +4,7 @@ import { Plus, Search, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
+import { formatCurrency } from '../lib/format';
 import type { Client } from '../types';
 
 function NewClientForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: () => void }) {
@@ -180,7 +181,7 @@ export function Clients() {
                   <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{client.tax_id ?? '—'}</td>
                   <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{client.phone ?? '—'}</td>
                   <td className={`px-5 py-3 font-medium ${client.account_balance > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                    ${client.account_balance.toFixed(2)}
+                    {formatCurrency(client.account_balance)}
                   </td>
                   <td className="px-5 py-3 text-right">
                     <Link

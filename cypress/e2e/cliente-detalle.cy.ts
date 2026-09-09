@@ -37,7 +37,7 @@ describe('Detalle de cliente', () => {
       cy.contains('Pendiente');
     });
     cy.contains('.rounded-xl', 'Ventas').within(() => {
-      cy.contains('$35000.00');
+      cy.contains('$35.000,00');
       cy.contains('Informal');
     });
   });

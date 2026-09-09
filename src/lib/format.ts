@@ -1,3 +1,3 @@
 export function formatCurrency(value: number) {
-  return `$${value.toFixed(2)}`;
+  return `$${value.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }

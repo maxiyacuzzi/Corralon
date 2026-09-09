@@ -40,8 +40,8 @@ describe('Ventas', () => {
 
     cy.contains('h1', 'Ventas').should('be.visible');
     cy.contains('tr', 'Juan Pérez').within(() => {
-      cy.contains('$35000.00');
-      cy.contains('Efectivo: $35000.00');
+      cy.contains('$35.000,00');
+      cy.contains('Efectivo: $35.000,00');
       cy.contains('Informal');
     });
   });
@@ -88,8 +88,8 @@ describe('Ventas', () => {
 
     cy.contains('button', 'Nueva venta').click();
     cy.get('form').within(() => {
-      // la línea de pago arranca sin monto -> total final $0.00, el botón queda deshabilitado
-      cy.contains('Total: $0.00').should('be.visible');
+      // la línea de pago arranca sin monto -> total final $0,00, el botón queda deshabilitado
+      cy.contains('Total: $0,00').should('be.visible');
       cy.contains('button', 'Registrar venta').should('be.disabled');
     });
   });

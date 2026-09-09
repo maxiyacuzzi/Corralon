@@ -8,7 +8,7 @@ describe('Clientes', () => {
 
     cy.contains('h1', 'Clientes').should('be.visible');
     cy.contains('tr', 'Constructora Sur SRL').within(() => {
-      cy.contains('$15000.00');
+      cy.contains('$15.000,00');
     });
   });
 

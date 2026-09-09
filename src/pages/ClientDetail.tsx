@@ -7,6 +7,7 @@ import { PrintButton } from '../components/PrintButton';
 import { ShareButton } from '../components/ShareButton';
 import { WhatsAppWebButton } from '../components/WhatsAppWebButton';
 import { paymentLabels } from '../lib/payments';
+import { formatCurrency } from '../lib/format';
 import type { Client, DeliveryNote, Product, Sale, SaleDeliveryNote, SalePayment } from '../types';
 
 export function ClientDetail() {
@@ -86,7 +87,7 @@ export function ClientDetail() {
           <span>CUIT/DNI: {client.tax_id ?? '—'}</span>
           <span>Teléfono: {client.phone ?? '—'}</span>
           <span className={client.account_balance > 0 ? 'text-red-500' : 'text-green-500'}>
-            Cuenta corriente: ${client.account_balance.toFixed(2)}
+            Cuenta corriente: {formatCurrency(client.account_balance)}
           </span>
         </div>
       </div>
@@ -194,7 +195,7 @@ export function ClientDetail() {
                       <td className="px-5 py-3 text-gray-500 dark:text-gray-400">
                         {new Date(sale.created_at).toLocaleDateString('es-AR')}
                       </td>
-                      <td className="px-5 py-3 text-gray-600 dark:text-gray-300">${sale.total_amount.toFixed(2)}</td>
+                      <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{formatCurrency(sale.total_amount)}</td>
                       <td className="px-5 py-3 text-gray-600 dark:text-gray-300">
                         {payments.length === 0 ? (
                           paymentLabels[sale.payment_method]
@@ -202,7 +203,7 @@ export function ClientDetail() {
                           <div className="flex flex-col gap-0.5">
                             {payments.map((payment) => (
                               <span key={payment.id}>
-                                {paymentLabels[payment.method]}: ${payment.amount.toFixed(2)}
+                                {paymentLabels[payment.method]}: {formatCurrency(payment.amount)}
                                 {payment.discount_percent > 0 && (
                                   <span className="ml-1 text-xs text-orange-500">-{payment.discount_percent}%</span>
                                 )}

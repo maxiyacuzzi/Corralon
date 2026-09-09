@@ -1,4 +1,5 @@
 import { paymentLabels } from '../lib/payments';
+import { formatCurrency } from '../lib/format';
 import type { Client, DeliveryNote, Sale, SalePayment } from '../types';
 
 interface SalePreviewProps {
@@ -49,14 +50,14 @@ export function SalePreview({ sale, client, deliveryNotes, payments }: SalePrevi
               <td className="py-2 text-right text-gray-900">
                 {payment.discount_percent > 0 ? `-${payment.discount_percent}%` : '—'}
               </td>
-              <td className="py-2 text-right text-gray-900">${payment.amount.toFixed(2)}</td>
+              <td className="py-2 text-right text-gray-900">{formatCurrency(payment.amount)}</td>
             </tr>
           ))}
         </tbody>
       </table>
 
       <div className="flex justify-end mt-4 pt-4 border-t border-gray-200">
-        <p className="text-lg font-semibold text-gray-900">Total: ${sale.total_amount.toFixed(2)}</p>
+        <p className="text-lg font-semibold text-gray-900">Total: {formatCurrency(sale.total_amount)}</p>
       </div>
     </div>
   );

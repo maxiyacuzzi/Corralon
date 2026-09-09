@@ -1,3 +1,4 @@
+import { formatCurrency } from '../lib/format';
 import type { Client, Product, Quote } from '../types';
 
 interface QuotePreviewProps {
@@ -58,8 +59,8 @@ export function QuotePreview({ quote, client, productsById }: QuotePreviewProps)
                 <td className="py-2 text-right text-gray-900">
                   {item.quantity} {product?.retail_unit ?? ''}
                 </td>
-                <td className="py-2 text-right text-gray-900">${item.unit_price.toFixed(2)}</td>
-                <td className="py-2 text-right text-gray-900">${(item.quantity * item.unit_price).toFixed(2)}</td>
+                <td className="py-2 text-right text-gray-900">{formatCurrency(item.unit_price)}</td>
+                <td className="py-2 text-right text-gray-900">{formatCurrency(item.quantity * item.unit_price)}</td>
               </tr>
             );
           })}
@@ -67,11 +68,11 @@ export function QuotePreview({ quote, client, productsById }: QuotePreviewProps)
       </table>
 
       <div className="flex flex-col items-end gap-1 mt-4 pt-4 border-t border-gray-200">
-        <p className="text-gray-500">Subtotal: ${subtotal.toFixed(2)}</p>
+        <p className="text-gray-500">Subtotal: {formatCurrency(subtotal)}</p>
         {quote.discount_percent > 0 && (
           <p className="text-gray-500">Descuento por pago en efectivo: -{quote.discount_percent}%</p>
         )}
-        <p className="text-lg font-semibold text-gray-900">Total: ${total.toFixed(2)}</p>
+        <p className="text-lg font-semibold text-gray-900">Total: {formatCurrency(total)}</p>
       </div>
     </div>
   );

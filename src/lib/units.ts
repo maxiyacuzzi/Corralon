@@ -14,7 +14,9 @@ export function retailToBulk(product: Pick<Product, 'conversion_factor'>, retail
 /** Formatea una cantidad en retail_unit mostrando también su equivalente en bulk_unit. */
 export function formatStock(product: Pick<Product, 'retail_unit' | 'bulk_unit' | 'conversion_factor'>, retailQuantity: number): string {
   const bulk = retailToBulk(product, retailQuantity);
-  return `${retailQuantity} ${product.retail_unit} (${bulk.toFixed(2)} ${product.bulk_unit})`;
+  const formattedRetail = retailQuantity.toLocaleString('es-AR');
+  const formattedBulk = bulk.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${formattedRetail} ${product.retail_unit} (${formattedBulk} ${product.bulk_unit})`;
 }
 
 export function stockStatus(product: Pick<Product, 'current_stock' | 'min_stock_alert'>): 'ok' | 'low' | 'empty' {

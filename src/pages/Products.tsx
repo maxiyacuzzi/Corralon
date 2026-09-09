@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { ProductForm } from '../components/ProductForm';
 import { formatStock, stockStatus } from '../lib/units';
 import { categoryFullName } from '../lib/categories';
+import { formatCurrency } from '../lib/format';
 import type { Category, Product, Stockpile, Supplier } from '../types';
 
 const statusStyles: Record<ReturnType<typeof stockStatus>, string> = {
@@ -166,7 +167,7 @@ export function Products() {
                       {stockpiled > 0 ? formatStock(product, stockpiled) : '—'}
                       {shortOnStock && <span className="ml-1 text-xs">(falta stock)</span>}
                     </td>
-                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">${product.price.toFixed(2)}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{formatCurrency(product.price)}</td>
                     <td className="px-5 py-3">
                       <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[status]}`}>
                         {statusLabels[status]}
