@@ -62,6 +62,7 @@ serve(async (req) => {
       payment_method,
       is_formal: is_formal ?? false,
       discount_percent,
+      created_by: user.id,
     })
     .select()
     .single()

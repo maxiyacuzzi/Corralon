@@ -8,6 +8,13 @@ export interface User {
   created_at: string;
 }
 
+export interface Profile {
+  id: string;
+  name: string;
+  role: UserRole;
+  created_at: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -71,6 +78,7 @@ export interface Quote {
   valid_until: string;
   status: 'draft' | 'approved' | 'expired' | 'converted';
   discount_percent: number; // descuento por pago en efectivo, 0-100
+  created_by: string | null;
   created_at: string;
 }
 
@@ -118,6 +126,7 @@ export interface Sale {
   payment_method: PaymentMethod | 'mixed'; // resumen: 'mixed' si combina más de una forma de pago
   is_formal: boolean; // false = comprobante informal ("en negro")
   discount_percent: number; // solo significativo si payment_method no es 'mixed'; ver sale_payments para el detalle
+  created_by: string | null;
   created_at: string;
 }
 

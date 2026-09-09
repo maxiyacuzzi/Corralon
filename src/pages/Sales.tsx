@@ -8,7 +8,7 @@ import { WhatsAppWebButton } from '../components/WhatsAppWebButton';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
 import { paymentLabels } from '../lib/payments';
-import type { Client, DeliveryNote, PaymentMethod, Product, Sale, SaleDeliveryNote, SalePayment } from '../types';
+import type { Client, DeliveryNote, PaymentMethod, Product, Profile, Sale, SaleDeliveryNote, SalePayment } from '../types';
 
 // El remito no guarda precio: se factura al precio ACTUAL del producto, no al que tenía al entregarse.
 function deliveryNoteTotal(note: DeliveryNote, productsById: Record<string, Product>): number {
@@ -324,6 +324,7 @@ export function Sales() {
   const [products, setProducts] = useState<Product[]>([]);
   const [saleDeliveryNotes, setSaleDeliveryNotes] = useState<SaleDeliveryNote[]>([]);
   const [salePayments, setSalePayments] = useState<SalePayment[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
@@ -336,20 +337,23 @@ export function Sales() {
 
   async function loadData() {
     setLoading(true);
-    const [salesResult, clientsResult, notesResult, productsResult, linksResult, paymentsResult] = await Promise.all([
-      supabase.from('sales').select('*').order('created_at', { ascending: false }),
-      supabase.from('clients').select('*').order('name'),
-      supabase.from('delivery_notes').select('*').order('created_at', { ascending: false }),
-      supabase.from('products').select('*'),
-      supabase.from('sale_delivery_notes').select('*'),
-      supabase.from('sale_payments').select('*'),
-    ]);
+    const [salesResult, clientsResult, notesResult, productsResult, linksResult, paymentsResult, profilesResult] =
+      await Promise.all([
+        supabase.from('sales').select('*').order('created_at', { ascending: false }),
+        supabase.from('clients').select('*').order('name'),
+        supabase.from('delivery_notes').select('*').order('created_at', { ascending: false }),
+        supabase.from('products').select('*'),
+        supabase.from('sale_delivery_notes').select('*'),
+        supabase.from('sale_payments').select('*'),
+        supabase.from('profiles').select('*'),
+      ]);
     setSales((salesResult.data ?? []) as Sale[]);
     setClients((clientsResult.data ?? []) as Client[]);
     setDeliveryNotes((notesResult.data ?? []) as DeliveryNote[]);
     setProducts((productsResult.data ?? []) as Product[]);
     setSaleDeliveryNotes((linksResult.data ?? []) as SaleDeliveryNote[]);
     setSalePayments((paymentsResult.data ?? []) as SalePayment[]);
+    setProfiles((profilesResult.data ?? []) as Profile[]);
     setLoading(false);
   }
 
@@ -360,6 +364,7 @@ export function Sales() {
 
   const clientsById = Object.fromEntries(clients.map((c) => [c.id, c]));
   const productsById = Object.fromEntries(products.map((p) => [p.id, p]));
+  const profilesById = Object.fromEntries(profiles.map((p) => [p.id, p]));
   const notesById = Object.fromEntries(deliveryNotes.map((n) => [n.id, n]));
   const linkedNoteIds = new Set(saleDeliveryNotes.map((link) => link.delivery_note_id));
   const notesBySaleId = saleDeliveryNotes.reduce<Record<string, DeliveryNote[]>>((acc, link) => {
@@ -474,6 +479,7 @@ export function Sales() {
                 <th className="px-5 py-3">Comprobante</th>
                 <th className="px-5 py-3">Remitos</th>
                 <th className="px-5 py-3">Fecha</th>
+                <th className="px-5 py-3">Cargado por</th>
                 <th className="px-5 py-3"></th>
               </tr>
             </thead>
@@ -517,6 +523,9 @@ export function Sales() {
                         : '—'}
                     </td>
                     <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{new Date(sale.created_at).toLocaleDateString('es-AR')}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">
+                      {sale.created_by ? profilesById[sale.created_by]?.name ?? '—' : '—'}
+                    </td>
                     <td className="px-5 py-3 text-right">
                       <button
                         onClick={() => setPreviewSale(sale)}

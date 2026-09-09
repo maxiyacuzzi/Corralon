@@ -7,7 +7,8 @@ import { ShareButton } from '../components/ShareButton';
 import { WhatsAppWebButton } from '../components/WhatsAppWebButton';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
-import type { Client, Product, Quote, QuoteItem } from '../types';
+import { useAuth } from '../context/AuthContext';
+import type { Client, Product, Profile, Quote, QuoteItem } from '../types';
 
 const statusLabels: Record<Quote['status'], string> = {
   draft: 'Borrador',
@@ -50,6 +51,7 @@ function NewQuoteForm({
   const [discountPercent, setDiscountPercent] = useState('0');
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string>();
+  const { user } = useAuth();
 
   function updateItem(index: number, patch: Partial<QuoteItem>) {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
@@ -74,6 +76,7 @@ function NewQuoteForm({
       valid_until: validUntil || null,
       status: 'draft',
       discount_percent: Number(discountPercent) || 0,
+      created_by: user?.id ?? null,
     });
 
     if (error) {
@@ -213,6 +216,7 @@ export function Quotes() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [convertingId, setConvertingId] = useState<string | null>(null);
@@ -227,14 +231,16 @@ export function Quotes() {
 
   async function loadData() {
     setLoading(true);
-    const [quotesResult, clientsResult, productsResult] = await Promise.all([
+    const [quotesResult, clientsResult, productsResult, profilesResult] = await Promise.all([
       supabase.from('quotes').select('*').order('created_at', { ascending: false }),
       supabase.from('clients').select('*').order('name'),
       supabase.from('products').select('*').order('name'),
+      supabase.from('profiles').select('*'),
     ]);
     setQuotes((quotesResult.data ?? []) as Quote[]);
     setClients((clientsResult.data ?? []) as Client[]);
     setProducts((productsResult.data ?? []) as Product[]);
+    setProfiles((profilesResult.data ?? []) as Profile[]);
     setLoading(false);
   }
 
@@ -268,6 +274,7 @@ export function Quotes() {
 
   const clientsById = Object.fromEntries(clients.map((c) => [c.id, c]));
   const productsById = Object.fromEntries(products.map((p) => [p.id, p]));
+  const profilesById = Object.fromEntries(profiles.map((p) => [p.id, p]));
 
   const filteredQuotes = quotes.filter((quote) => {
     const term = search.trim().toLowerCase();
@@ -361,6 +368,7 @@ export function Quotes() {
                 <th className="px-5 py-3">Total</th>
                 <th className="px-5 py-3">Válido hasta</th>
                 <th className="px-5 py-3">Estado</th>
+                <th className="px-5 py-3">Cargado por</th>
                 <th className="px-5 py-3"></th>
               </tr>
             </thead>
@@ -385,6 +393,9 @@ export function Quotes() {
                       <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[quote.status]}`}>
                         {statusLabels[quote.status]}
                       </span>
+                    </td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">
+                      {quote.created_by ? profilesById[quote.created_by]?.name ?? '—' : '—'}
                     </td>
                     <td className="px-5 py-3 text-right">
                       <div className="flex flex-col items-end gap-2">
