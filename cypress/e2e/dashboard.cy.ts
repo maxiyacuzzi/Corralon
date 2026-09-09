@@ -87,7 +87,7 @@ describe('Dashboard', () => {
     });
     cy.loginAs('/');
 
-    cy.contains('Sin movimientos registrados.').should('be.visible');
-    cy.contains('Sin remitos generados.').should('be.visible');
+    cy.contains('Sin movimientos registrados.').scrollIntoView().should('be.visible');
+    cy.contains('Sin remitos generados.').scrollIntoView().should('be.visible');
   });
 });

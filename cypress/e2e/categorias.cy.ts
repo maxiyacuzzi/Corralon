@@ -54,6 +54,7 @@ describe('Categorías', () => {
 
   it('crea una subcategoría bajo una categoría existente', () => {
     mockSupabase({ profiles: [OWNER_PROFILE], categories: baseCategories() });
+    cy.intercept('POST', '**/rest/v1/categories*').as('insertCategory');
     cy.loginAs('/categorias');
 
     cy.contains('span', 'Cementos y morteros')
@@ -70,7 +71,7 @@ describe('Categorías', () => {
       cy.contains('button', 'Guardar subcategoría').click();
     });
 
-    cy.wait('@supabaseRest').its('request.body').should('deep.include', { parent_id: 'cat-1' });
+    cy.wait('@insertCategory').its('request.body').should('deep.include', { parent_id: 'cat-1' });
     cy.contains('h2', 'Nueva subcategoría').should('not.exist');
     cy.contains('↳ Cemento').should('be.visible');
   });
