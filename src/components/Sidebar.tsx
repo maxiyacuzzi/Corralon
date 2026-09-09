@@ -11,6 +11,7 @@ import {
   ShoppingCart,
   Banknote,
   Wallet,
+  BarChart3,
   LogOut,
   Moon,
   Sun,
@@ -31,6 +32,7 @@ const links = [
   { to: '/ventas', label: 'Ventas', icon: ShoppingCart, end: false },
   { to: '/valores', label: 'Valores', icon: Banknote, end: false },
   { to: '/caja', label: 'Caja', icon: Wallet, end: false },
+  { to: '/estadisticas', label: 'Estadísticas', icon: BarChart3, end: false },
 ];
 
 export function Sidebar() {

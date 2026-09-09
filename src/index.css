@@ -6,3 +6,22 @@ body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
+
+/* Al imprimir, solo se muestra el contenido marcado como .print-area
+   (comprobantes, reportes) — el resto de la pantalla (sidebar, botones,
+   filtros) queda oculto aunque no tenga la clase print:hidden. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+}

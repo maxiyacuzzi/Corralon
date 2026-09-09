@@ -113,7 +113,7 @@ export function ClientDetail() {
               />
             </div>
           </div>
-          <div ref={previewRef}>
+          <div ref={previewRef} className="print-area">
             <DeliveryNotePreview deliveryNote={previewNote} client={client} productsById={productsById} />
           </div>
         </div>
