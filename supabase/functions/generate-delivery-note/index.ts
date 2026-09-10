@@ -10,10 +10,11 @@ interface DeliveryNoteItem {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
-  const { client_id, stockpile_id, items } = await req.json() as {
+  const { client_id, stockpile_id, items, delivery_address } = await req.json() as {
     client_id: string
     stockpile_id: string | null
     items: DeliveryNoteItem[]
+    delivery_address?: string | null
   }
   const authHeader = req.headers.get('Authorization')!
 
@@ -63,6 +64,7 @@ serve(async (req) => {
       client_id,
       stockpile_id,
       items,
+      delivery_address: delivery_address ?? null,
       created_by: user.id,
     })
     .select()

@@ -58,7 +58,16 @@ export interface Client {
   name: string;
   tax_id: string | null;
   phone: string | null;
+  address: string | null; // domicilio real del cliente
   account_balance: number; // deuda (+) o saldo a favor (-)
+}
+
+export interface ClientWorkAddress {
+  id: string;
+  client_id: string;
+  label: string; // ej: "Obra Ruta 9 km 45"
+  address: string;
+  created_at: string;
 }
 
 export interface Stockpile {
@@ -99,6 +108,7 @@ export interface DeliveryNote {
   client_id: string;
   stockpile_id: string | null; // si es retiro contra acopio
   items: DeliveryNoteItem[]; // sin precio: el remito es solo comprobante de entrega
+  delivery_address: string | null; // dirección elegida al generarse, congelada
   created_at: string;
 }
 

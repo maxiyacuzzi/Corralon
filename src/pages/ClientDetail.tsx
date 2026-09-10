@@ -1,14 +1,145 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { DeliveryNotePreview } from '../components/DeliveryNotePreview';
 import { PrintButton } from '../components/PrintButton';
 import { ShareButton } from '../components/ShareButton';
 import { WhatsAppWebButton } from '../components/WhatsAppWebButton';
+import type { SaveStatus } from '../components/SaveStatusIndicator';
+import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
 import { paymentLabels } from '../lib/payments';
 import { formatCurrency } from '../lib/format';
-import type { Client, DeliveryNote, Product, Sale, SaleDeliveryNote, SalePayment } from '../types';
+import type { Client, ClientWorkAddress, DeliveryNote, Product, Sale, SaleDeliveryNote, SalePayment } from '../types';
+
+function EditAddressForm({
+  client,
+  onSaved,
+  onCancel,
+}: {
+  client: Client;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const [address, setAddress] = useState(client.address ?? '');
+  const [status, setStatus] = useState<SaveStatus>('idle');
+  const [errorMessage, setErrorMessage] = useState<string>();
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setStatus('saving');
+    setErrorMessage(undefined);
+
+    const { error } = await supabase.from('clients').update({ address: address || null }).eq('id', client.id);
+
+    if (error) {
+      setStatus('error');
+      setErrorMessage('No se pudo guardar el domicilio. Verificá tu conexión.');
+      return;
+    }
+
+    setStatus('saved');
+    onSaved();
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex items-center gap-2">
+      <input
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+        placeholder="Calle, número, localidad"
+        className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-1.5 text-sm text-gray-900 dark:text-white"
+      />
+      <SaveStatusIndicator status={status} errorMessage={errorMessage} />
+      <button
+        type="button"
+        onClick={onCancel}
+        className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+      >
+        Cancelar
+      </button>
+      <button
+        type="submit"
+        disabled={status === 'saving'}
+        className="rounded-lg bg-orange-600 px-3 py-1.5 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500 disabled:opacity-50"
+      >
+        Guardar
+      </button>
+    </form>
+  );
+}
+
+function NewWorkAddressForm({
+  clientId,
+  onSaved,
+  onCancel,
+}: {
+  clientId: string;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const [label, setLabel] = useState('');
+  const [address, setAddress] = useState('');
+  const [status, setStatus] = useState<SaveStatus>('idle');
+  const [errorMessage, setErrorMessage] = useState<string>();
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setStatus('saving');
+    setErrorMessage(undefined);
+
+    const { error } = await supabase.from('client_work_addresses').insert({ client_id: clientId, label, address });
+
+    if (error) {
+      setStatus('error');
+      setErrorMessage('No se pudo guardar la dirección. Verificá tu conexión.');
+      return;
+    }
+
+    setStatus('saved');
+    onSaved();
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <input
+          required
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="Ej: Obra Ruta 9 km 45"
+          className="rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white"
+        />
+        <input
+          required
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="Dirección"
+          className="rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white"
+        />
+      </div>
+      <div className="flex items-center justify-between">
+        <SaveStatusIndicator status={status} errorMessage={errorMessage} />
+        <div className="flex gap-3 ml-auto">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={status === 'saving'}
+            className="rounded-lg bg-orange-600 px-3 py-1.5 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500 disabled:opacity-50"
+          >
+            Agregar
+          </button>
+        </div>
+      </div>
+    </form>
+  );
+}
 
 export function ClientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -18,8 +149,11 @@ export function ClientDetail() {
   const [saleDeliveryNotes, setSaleDeliveryNotes] = useState<SaleDeliveryNote[]>([]);
   const [salePayments, setSalePayments] = useState<SalePayment[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [workAddresses, setWorkAddresses] = useState<ClientWorkAddress[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewNote, setPreviewNote] = useState<DeliveryNote | null>(null);
+  const [editingAddress, setEditingAddress] = useState(false);
+  const [showAddWorkAddress, setShowAddWorkAddress] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,21 +162,39 @@ export function ClientDetail() {
 
   async function loadData(clientId: string) {
     setLoading(true);
-    const [clientResult, salesResult, notesResult, productsResult, linksResult, paymentsResult] = await Promise.all([
-      supabase.from('clients').select('*').eq('id', clientId).single(),
-      supabase.from('sales').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
-      supabase.from('delivery_notes').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
-      supabase.from('products').select('*'),
-      supabase.from('sale_delivery_notes').select('*'),
-      supabase.from('sale_payments').select('*'),
-    ]);
+    const [clientResult, salesResult, notesResult, productsResult, linksResult, paymentsResult, workAddressesResult] =
+      await Promise.all([
+        supabase.from('clients').select('*').eq('id', clientId).single(),
+        supabase.from('sales').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
+        supabase.from('delivery_notes').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
+        supabase.from('products').select('*'),
+        supabase.from('sale_delivery_notes').select('*'),
+        supabase.from('sale_payments').select('*'),
+        supabase.from('client_work_addresses').select('*').eq('client_id', clientId).order('created_at'),
+      ]);
     setClient((clientResult.data ?? null) as Client | null);
     setSales((salesResult.data ?? []) as Sale[]);
     setDeliveryNotes((notesResult.data ?? []) as DeliveryNote[]);
     setProducts((productsResult.data ?? []) as Product[]);
     setSaleDeliveryNotes((linksResult.data ?? []) as SaleDeliveryNote[]);
     setSalePayments((paymentsResult.data ?? []) as SalePayment[]);
+    setWorkAddresses((workAddressesResult.data ?? []) as ClientWorkAddress[]);
     setLoading(false);
+  }
+
+  function handleAddressSaved() {
+    setEditingAddress(false);
+    if (id) loadData(id);
+  }
+
+  function handleWorkAddressSaved() {
+    setShowAddWorkAddress(false);
+    if (id) loadData(id);
+  }
+
+  async function deleteWorkAddress(addressId: string) {
+    await supabase.from('client_work_addresses').delete().eq('id', addressId);
+    if (id) loadData(id);
   }
 
   const productsById = Object.fromEntries(products.map((p) => [p.id, p]));
@@ -90,7 +242,75 @@ export function ClientDetail() {
             Cuenta corriente: {formatCurrency(client.account_balance)}
           </span>
         </div>
+
+        <div className="mt-3">
+          {editingAddress ? (
+            <EditAddressForm client={client} onSaved={handleAddressSaved} onCancel={() => setEditingAddress(false)} />
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+              <span>Domicilio: {client.address ?? '—'}</span>
+              <button
+                onClick={() => setEditingAddress(true)}
+                className="text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                title="Editar domicilio"
+              >
+                <Pencil size={14} />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {!previewNote && (
+        <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white">Direcciones de obra</h2>
+            <button
+              onClick={() => setShowAddWorkAddress(true)}
+              className="flex items-center gap-2 rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600"
+            >
+              <Plus size={14} />
+              Agregar dirección
+            </button>
+          </div>
+
+          {showAddWorkAddress && (
+            <div className="mb-4 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">Nueva dirección de obra</p>
+                <button onClick={() => setShowAddWorkAddress(false)} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                  <X size={16} />
+                </button>
+              </div>
+              <NewWorkAddressForm clientId={client.id} onSaved={handleWorkAddressSaved} onCancel={() => setShowAddWorkAddress(false)} />
+            </div>
+          )}
+
+          {workAddresses.length === 0 ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">Sin direcciones de obra registradas.</p>
+          ) : (
+            <ul className="space-y-2">
+              {workAddresses.map((workAddress) => (
+                <li
+                  key={workAddress.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-800 px-3 py-2 text-sm"
+                >
+                  <span className="text-gray-600 dark:text-gray-300">
+                    <span className="text-gray-900 dark:text-white font-medium">{workAddress.label}</span> — {workAddress.address}
+                  </span>
+                  <button
+                    onClick={() => deleteWorkAddress(workAddress.id)}
+                    className="text-gray-400 dark:text-gray-500 hover:text-red-500"
+                    title="Eliminar dirección"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {previewNote ? (
         <div className="space-y-3">

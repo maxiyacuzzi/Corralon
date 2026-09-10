@@ -7,28 +7,33 @@ import { ShareButton } from '../components/ShareButton';
 import { WhatsAppWebButton } from '../components/WhatsAppWebButton';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
-import type { Client, DeliveryNote, DeliveryNoteItem, Product, SaleDeliveryNote, Stockpile } from '../types';
+import type { Client, ClientWorkAddress, DeliveryNote, DeliveryNoteItem, Product, SaleDeliveryNote, Stockpile } from '../types';
 
 function NewDeliveryNoteForm({
   clients,
   products,
   stockpiles,
+  workAddresses,
   onSaved,
   onCancel,
 }: {
   clients: Client[];
   products: Product[];
   stockpiles: Stockpile[];
+  workAddresses: ClientWorkAddress[];
   onSaved: () => void;
   onCancel: () => void;
 }) {
   const [clientId, setClientId] = useState(clients[0]?.id ?? '');
   const [stockpileId, setStockpileId] = useState<string>('');
+  const [addressChoice, setAddressChoice] = useState<string>('');
   const [items, setItems] = useState<DeliveryNoteItem[]>([{ product_id: products[0]?.id ?? '', quantity: 1 }]);
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string>();
 
+  const selectedClient = clients.find((c) => c.id === clientId);
   const clientStockpiles = stockpiles.filter((s) => s.client_id === clientId && s.remaining > 0);
+  const clientWorkAddresses = workAddresses.filter((w) => w.client_id === clientId);
 
   function updateItem(index: number, patch: Partial<DeliveryNoteItem>) {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
@@ -47,11 +52,15 @@ function NewDeliveryNoteForm({
     setStatus('saving');
     setErrorMessage(undefined);
 
+    const deliveryAddress =
+      addressChoice === '' ? (selectedClient?.address ?? null) : (clientWorkAddresses.find((w) => w.id === addressChoice)?.address ?? null);
+
     const { data, error } = await supabase.functions.invoke('generate-delivery-note', {
       body: {
         client_id: clientId,
         stockpile_id: stockpileId || null,
         items,
+        delivery_address: deliveryAddress,
       },
     });
 
@@ -75,6 +84,7 @@ function NewDeliveryNoteForm({
             onChange={(e) => {
               setClientId(e.target.value);
               setStockpileId('');
+              setAddressChoice('');
             }}
             className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           >
@@ -100,6 +110,24 @@ function NewDeliveryNoteForm({
             ))}
           </select>
         </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Dirección de entrega</label>
+        <select
+          value={addressChoice}
+          onChange={(e) => setAddressChoice(e.target.value)}
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
+        >
+          <option value="">
+            Domicilio del cliente{selectedClient?.address ? ` (${selectedClient.address})` : ' (sin domicilio cargado)'}
+          </option>
+          {clientWorkAddresses.map((workAddress) => (
+            <option key={workAddress.id} value={workAddress.id}>
+              {workAddress.label} ({workAddress.address})
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="space-y-2">
@@ -168,6 +196,7 @@ export function DeliveryNotes() {
   const [clients, setClients] = useState<Client[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [stockpiles, setStockpiles] = useState<Stockpile[]>([]);
+  const [workAddresses, setWorkAddresses] = useState<ClientWorkAddress[]>([]);
   const [saleDeliveryNotes, setSaleDeliveryNotes] = useState<SaleDeliveryNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -181,12 +210,13 @@ export function DeliveryNotes() {
 
   async function loadData() {
     setLoading(true);
-    const [notesResult, clientsResult, productsResult, stockpilesResult, linksResult] = await Promise.all([
+    const [notesResult, clientsResult, productsResult, stockpilesResult, linksResult, workAddressesResult] = await Promise.all([
       supabase.from('delivery_notes').select('*').order('created_at', { ascending: false }),
       supabase.from('clients').select('*').order('name'),
       supabase.from('products').select('*').order('name'),
       supabase.from('stockpiles').select('*'),
       supabase.from('sale_delivery_notes').select('*'),
+      supabase.from('client_work_addresses').select('*'),
     ]);
     setDeliveryNotes((notesResult.data ?? []) as DeliveryNote[]);
     setClients((clientsResult.data ?? []) as Client[]);
@@ -194,6 +224,7 @@ export function DeliveryNotes() {
     const rawStockpiles = (stockpilesResult.data ?? []) as Omit<Stockpile, 'remaining'>[];
     setStockpiles(rawStockpiles.map((s) => ({ ...s, remaining: s.total_reserved - s.total_withdrawn })));
     setSaleDeliveryNotes((linksResult.data ?? []) as SaleDeliveryNote[]);
+    setWorkAddresses((workAddressesResult.data ?? []) as ClientWorkAddress[]);
     setLoading(false);
   }
 
@@ -249,6 +280,7 @@ export function DeliveryNotes() {
             clients={clients}
             products={products}
             stockpiles={stockpiles}
+            workAddresses={workAddresses}
             onSaved={handleSaved}
             onCancel={() => setShowForm(false)}
           />

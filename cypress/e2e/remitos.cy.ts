@@ -1,7 +1,7 @@
 import { mockSupabase, mockFunction } from '../support/mock-supabase';
 import { OWNER_PROFILE, baseClients, baseProducts, baseStockpiles, baseDeliveryNotes } from '../support/fixtures';
 
-function seedDeliveryNotes(opts: { linked?: boolean } = {}) {
+function seedDeliveryNotes(opts: { linked?: boolean; workAddresses?: unknown[] } = {}) {
   mockSupabase({
     profiles: [OWNER_PROFILE],
     clients: baseClients(),
@@ -9,6 +9,7 @@ function seedDeliveryNotes(opts: { linked?: boolean } = {}) {
     stockpiles: baseStockpiles(),
     delivery_notes: baseDeliveryNotes(),
     sale_delivery_notes: opts.linked ? [{ sale_id: 'sale-1', delivery_note_id: 'dn-1' }] : [],
+    client_work_addresses: opts.workAddresses ?? [],
   });
 }
 
@@ -55,6 +56,23 @@ describe('Remitos', () => {
 
     cy.wait('@fn_generate-delivery-note').its('request.body').should('deep.include', { client_id: 'cli-1' });
     cy.contains('h2', 'Nuevo remito').should('not.exist');
+  });
+
+  it('permite elegir una dirección de obra como destino del remito', () => {
+    seedDeliveryNotes({
+      workAddresses: [{ id: 'wa-1', client_id: 'cli-1', label: 'Obra Barrio Norte', address: 'Ruta 9 km 45', created_at: '2026-01-01T00:00:00.000Z' }],
+    });
+    mockFunction('generate-delivery-note', { statusCode: 200, body: { data: { ok: true } } });
+    cy.loginAs('/remitos');
+
+    cy.contains('button', 'Nuevo remito').click();
+    cy.get('form').within(() => {
+      cy.get('select').eq(0).select('Juan Pérez');
+      cy.contains('label', 'Dirección de entrega').next('select').select('Obra Barrio Norte (Ruta 9 km 45)');
+      cy.contains('button', 'Generar remito').click();
+    });
+
+    cy.wait('@fn_generate-delivery-note').its('request.body').should('deep.include', { delivery_address: 'Ruta 9 km 45' });
   });
 
   it('abre la vista previa de un remito', () => {
