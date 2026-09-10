@@ -118,10 +118,17 @@ export interface SalePayment {
   created_at: string;
 }
 
+export interface SaleItem {
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+}
+
 export interface Sale {
   id: string;
   client_id: string;
   delivery_note_id: string | null; // en desuso, ver sale_delivery_notes
+  items: SaleItem[] | null; // productos cargados directo en la venta (sin remito previo)
   total_amount: number; // suma de sale_payments, ya con descuentos aplicados
   payment_method: PaymentMethod | 'mixed'; // resumen: 'mixed' si combina más de una forma de pago
   is_formal: boolean; // false = comprobante informal ("en negro")
