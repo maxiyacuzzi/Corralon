@@ -432,7 +432,7 @@ export function Sales() {
               />
             </div>
           </div>
-          <div ref={previewRef}>
+          <div ref={previewRef} className="print-area">
             <SalePreview
               sale={previewSale}
               client={clientsById[previewSale.client_id]}

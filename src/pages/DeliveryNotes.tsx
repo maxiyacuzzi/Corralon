@@ -276,7 +276,7 @@ export function DeliveryNotes() {
               />
             </div>
           </div>
-          <div ref={previewRef}>
+          <div ref={previewRef} className="print-area">
             <DeliveryNotePreview
               deliveryNote={previewNote}
               client={clientsById[previewNote.client_id]}

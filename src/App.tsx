@@ -16,6 +16,7 @@ import { DeliveryNotes } from './pages/DeliveryNotes';
 import { Sales } from './pages/Sales';
 import { Checks } from './pages/Checks';
 import { Caja } from './pages/Caja';
+import { Statistics } from './pages/Statistics';
 
 function RequireAuth() {
   const { user, loading } = useAuth();
@@ -55,6 +56,7 @@ function App() {
                 <Route path="ventas" element={<Sales />} />
                 <Route path="valores" element={<Checks />} />
                 <Route path="caja" element={<Caja />} />
+                <Route path="estadisticas" element={<Statistics />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Route>

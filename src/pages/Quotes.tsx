@@ -331,7 +331,7 @@ export function Quotes() {
               />
             </div>
           </div>
-          <div ref={previewRef}>
+          <div ref={previewRef} className="print-area">
             <QuotePreview
               quote={previewQuote}
               client={clientsById[previewQuote.client_id]}
