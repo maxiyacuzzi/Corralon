@@ -22,6 +22,9 @@ export function DeliveryNotePreview({ deliveryNote, client, productsById }: Deli
         <p className="text-sm text-gray-500">Cliente</p>
         <p className="text-gray-900 font-medium">{client.name}</p>
         {client.tax_id && <p className="text-sm text-gray-500">CUIT/DNI: {client.tax_id}</p>}
+        {deliveryNote.delivery_address && (
+          <p className="text-sm text-gray-500 mt-1">Entregar en: <span className="text-gray-900">{deliveryNote.delivery_address}</span></p>
+        )}
       </div>
 
       <table className="w-full text-sm">

@@ -21,17 +21,19 @@ describe('Clientes', () => {
     cy.contains('td', 'Juan Pérez').should('not.exist');
   });
 
-  it('crea un cliente nuevo', () => {
+  it('crea un cliente nuevo con domicilio', () => {
     mockSupabase({ profiles: [OWNER_PROFILE], clients: baseClients() });
+    cy.intercept('POST', '**/rest/v1/clients*').as('insertClient');
     cy.loginAs('/clientes');
 
     cy.contains('button', 'Nuevo cliente').click();
     cy.get('form').within(() => {
       cy.contains('label', 'Nombre').next('input').type('María López');
+      cy.contains('label', 'Domicilio').next('input').type('Av. Siempre Viva 742');
       cy.contains('button', 'Guardar cliente').click();
     });
 
-    cy.wait('@supabaseRest');
+    cy.wait('@insertClient').its('request.body').should('deep.include', { address: 'Av. Siempre Viva 742' });
     cy.contains('h2', 'Nuevo cliente').should('not.exist');
     cy.contains('td', 'María López').should('be.visible');
   });

@@ -12,7 +12,7 @@ const SALE = {
   created_at: '2026-01-06T00:00:00.000Z',
 };
 
-function seedClientDetail(opts: { sales?: unknown[]; deliveryNotes?: unknown[] } = {}) {
+function seedClientDetail(opts: { sales?: unknown[]; deliveryNotes?: unknown[]; workAddresses?: unknown[] } = {}) {
   mockSupabase({
     profiles: [OWNER_PROFILE],
     clients: baseClients(),
@@ -21,6 +21,7 @@ function seedClientDetail(opts: { sales?: unknown[]; deliveryNotes?: unknown[] }
     sales: opts.sales ?? [SALE],
     sale_delivery_notes: [],
     sale_payments: [],
+    client_work_addresses: opts.workAddresses ?? [],
   });
 }
 
@@ -56,6 +57,44 @@ describe('Detalle de cliente', () => {
 
     cy.contains('Cliente no encontrado.').should('be.visible');
     cy.contains('← Volver a clientes').should('be.visible');
+  });
+
+  it('edita el domicilio del cliente', () => {
+    seedClientDetail();
+    cy.intercept('PATCH', '**/rest/v1/clients*').as('updateClient');
+    cy.loginAs('/clientes/cli-1');
+
+    cy.contains('Domicilio: —').should('be.visible');
+    cy.get('[title="Editar domicilio"]').click();
+    cy.get('input[placeholder*="Calle, número"]').type('Av. Siempre Viva 742');
+    cy.contains('button', 'Guardar').click();
+
+    cy.wait('@updateClient').its('request.body').should('deep.include', { address: 'Av. Siempre Viva 742' });
+    cy.contains('Domicilio: Av. Siempre Viva 742').should('be.visible');
+  });
+
+  it('agrega y elimina una dirección de obra', () => {
+    seedClientDetail();
+    cy.intercept('POST', '**/rest/v1/client_work_addresses*').as('insertWorkAddress');
+    cy.intercept('DELETE', '**/rest/v1/client_work_addresses*').as('deleteWorkAddress');
+    cy.loginAs('/clientes/cli-1');
+
+    cy.contains('Sin direcciones de obra registradas.').should('be.visible');
+    cy.contains('button', 'Agregar dirección').click();
+    cy.get('input[placeholder*="Obra Ruta 9"]').type('Obra Barrio Norte');
+    cy.get('input[placeholder="Dirección"]').type('Ruta 9 km 45');
+    cy.contains('button', 'Agregar').click();
+
+    cy.wait('@insertWorkAddress').its('request.body').should('deep.include', {
+      client_id: 'cli-1',
+      label: 'Obra Barrio Norte',
+      address: 'Ruta 9 km 45',
+    });
+    cy.contains('Obra Barrio Norte').should('be.visible');
+
+    cy.get('[title="Eliminar dirección"]').click();
+    cy.wait('@deleteWorkAddress');
+    cy.contains('Sin direcciones de obra registradas.').should('be.visible');
   });
 
   it('abre la vista previa de un remito desde el historial del cliente', () => {

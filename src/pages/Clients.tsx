@@ -11,6 +11,7 @@ function NewClientForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: (
   const [name, setName] = useState('');
   const [taxId, setTaxId] = useState('');
   const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string>();
 
@@ -23,6 +24,7 @@ function NewClientForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: (
       name,
       tax_id: taxId || null,
       phone: phone || null,
+      address: address || null,
       account_balance: 0,
     });
 
@@ -64,6 +66,16 @@ function NewClientForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: (
             className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           />
         </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Domicilio</label>
+        <input
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
+          placeholder="Calle, número, localidad"
+        />
       </div>
 
       <div className="flex items-center justify-between pt-2">
