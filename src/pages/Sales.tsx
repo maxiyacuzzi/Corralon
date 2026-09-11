@@ -9,7 +9,7 @@ import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
 import { paymentLabels } from '../lib/payments';
 import { formatCurrency } from '../lib/format';
-import type { Client, DeliveryNote, PaymentMethod, Product, Profile, Sale, SaleDeliveryNote, SalePayment } from '../types';
+import type { Client, DeliveryNote, PaymentMethod, Product, Profile, Sale, SaleDeliveryNote, SaleItem, SalePayment } from '../types';
 
 // El remito no guarda precio: se factura al precio ACTUAL del producto, no al que tenía al entregarse.
 function deliveryNoteTotal(note: DeliveryNote, productsById: Record<string, Product>): number {
@@ -48,6 +48,7 @@ function NewSaleForm({
   clients,
   deliveryNotes,
   linkedNoteIds,
+  products,
   productsById,
   onSaved,
   onCancel,
@@ -55,12 +56,14 @@ function NewSaleForm({
   clients: Client[];
   deliveryNotes: DeliveryNote[];
   linkedNoteIds: Set<string>;
+  products: Product[];
   productsById: Record<string, Product>;
   onSaved: () => void;
   onCancel: () => void;
 }) {
   const [clientId, setClientId] = useState(clients[0]?.id ?? '');
   const [selectedNoteIds, setSelectedNoteIds] = useState<string[]>([]);
+  const [items, setItems] = useState<SaleItem[]>([]);
   const [paymentLines, setPaymentLines] = useState<PaymentLineState[]>([emptyPaymentLine()]);
   const [isFormal, setIsFormal] = useState(false);
   const [status, setStatus] = useState<SaveStatus>('idle');
@@ -71,10 +74,23 @@ function NewSaleForm({
     const note = availableNotes.find((n) => n.id === id);
     return sum + (note ? deliveryNoteTotal(note, productsById) : 0);
   }, 0);
+  const itemsSubtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
   const totalFinal = paymentLines.reduce((sum, line) => sum + paymentLineFinalAmount(line), 0);
 
   function toggleNote(id: string) {
     setSelectedNoteIds((prev) => (prev.includes(id) ? prev.filter((n) => n !== id) : [...prev, id]));
+  }
+
+  function updateItem(index: number, patch: Partial<SaleItem>) {
+    setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  }
+
+  function addItem() {
+    setItems((prev) => [...prev, { product_id: products[0]?.id ?? '', quantity: 1, unit_price: products[0]?.price ?? 0 }]);
+  }
+
+  function removeItem(index: number) {
+    setItems((prev) => prev.filter((_, i) => i !== index));
   }
 
   function updateLine(index: number, patch: Partial<PaymentLineState>) {
@@ -113,6 +129,7 @@ function NewSaleForm({
       body: {
         client_id: clientId,
         delivery_note_ids: selectedNoteIds,
+        items: items.filter((item) => item.product_id && item.quantity > 0),
         payments,
         is_formal: isFormal,
       },
@@ -178,6 +195,61 @@ function NewSaleForm({
         {selectedNoteIds.length > 0 && (
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
             Total de remitos seleccionados (a precio actual): <span className="text-gray-900 dark:text-white font-medium">{formatCurrency(selectedNotesTotal)}</span> — repartilo entre las formas de pago de abajo.
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">
+          Productos (opcional, venta de mostrador sin remito)
+        </label>
+        {items.map((item, index) => (
+          <div key={index} className="flex gap-2 items-center">
+            <select
+              value={item.product_id}
+              onChange={(e) => {
+                const product = products.find((p) => p.id === e.target.value);
+                updateItem(index, { product_id: e.target.value, unit_price: product?.price ?? item.unit_price });
+              }}
+              className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
+            >
+              {products.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              step="any"
+              value={item.quantity}
+              onChange={(e) => updateItem(index, { quantity: Number(e.target.value) })}
+              className="w-24 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
+              placeholder="Cant."
+            />
+            <input
+              type="number"
+              step="any"
+              value={item.unit_price}
+              onChange={(e) => updateItem(index, { unit_price: Number(e.target.value) })}
+              className="w-28 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
+              placeholder="Precio"
+            />
+            <button
+              type="button"
+              onClick={() => removeItem(index)}
+              className="text-gray-500 dark:text-gray-400 hover:text-red-500"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ))}
+        <button type="button" onClick={addItem} className="text-sm text-orange-500 hover:text-orange-400">
+          + Agregar producto
+        </button>
+        {items.length > 0 && (
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Total de productos: <span className="text-gray-900 dark:text-white font-medium">{formatCurrency(itemsSubtotal)}</span> — repartilo entre las formas de pago de abajo.
           </p>
         )}
       </div>
@@ -438,6 +510,7 @@ export function Sales() {
               client={clientsById[previewSale.client_id]}
               deliveryNotes={notesBySaleId[previewSale.id] ?? []}
               payments={paymentsBySaleId[previewSale.id] ?? []}
+              productsById={productsById}
             />
           </div>
         </div>
@@ -455,6 +528,7 @@ export function Sales() {
             clients={clients}
             deliveryNotes={deliveryNotes}
             linkedNoteIds={linkedNoteIds}
+            products={products}
             productsById={productsById}
             onSaved={handleSaved}
             onCancel={() => setShowForm(false)}

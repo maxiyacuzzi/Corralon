@@ -1,15 +1,16 @@
 import { paymentLabels } from '../lib/payments';
 import { formatCurrency } from '../lib/format';
-import type { Client, DeliveryNote, Sale, SalePayment } from '../types';
+import type { Client, DeliveryNote, Product, Sale, SalePayment } from '../types';
 
 interface SalePreviewProps {
   sale: Sale;
   client: Client;
   deliveryNotes: DeliveryNote[];
   payments: SalePayment[];
+  productsById: Record<string, Product>;
 }
 
-export function SalePreview({ sale, client, deliveryNotes, payments }: SalePreviewProps) {
+export function SalePreview({ sale, client, deliveryNotes, payments, productsById }: SalePreviewProps) {
   return (
     <div className="bg-white text-gray-900 border border-gray-200 rounded-xl p-8 max-w-2xl mx-auto">
       <div className="flex items-start justify-between border-b border-gray-200 pb-4 mb-4">
@@ -33,6 +34,34 @@ export function SalePreview({ sale, client, deliveryNotes, payments }: SalePrevi
             {deliveryNotes.map((note) => String(note.number).padStart(6, '0')).join(', ')}
           </p>
         </div>
+      )}
+
+      {sale.items && sale.items.length > 0 && (
+        <table className="w-full text-sm mb-6">
+          <thead>
+            <tr className="text-left text-gray-500 border-b border-gray-200">
+              <th className="pb-2">Producto</th>
+              <th className="pb-2 text-right">Cantidad</th>
+              <th className="pb-2 text-right">Precio unit.</th>
+              <th className="pb-2 text-right">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sale.items.map((item, index) => {
+              const product = productsById[item.product_id];
+              return (
+                <tr key={index} className="border-b border-gray-100">
+                  <td className="py-2 text-gray-900">{product?.name ?? item.product_id}</td>
+                  <td className="py-2 text-right text-gray-900">
+                    {item.quantity} {product?.retail_unit ?? ''}
+                  </td>
+                  <td className="py-2 text-right text-gray-900">{formatCurrency(item.unit_price)}</td>
+                  <td className="py-2 text-right text-gray-900">{formatCurrency(item.quantity * item.unit_price)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       )}
 
       <table className="w-full text-sm">

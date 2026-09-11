@@ -82,6 +82,25 @@ describe('Ventas', () => {
     cy.wait('@fn_register-sale').its('request.body.delivery_note_ids').should('deep.equal', ['dn-1']);
   });
 
+  it('permite agregar productos directo en la venta, sin remito', () => {
+    seedSales();
+    mockFunction('register-sale', { statusCode: 200, body: { data: { ok: true } } });
+    cy.loginAs('/ventas');
+
+    cy.contains('button', 'Nueva venta').click();
+    cy.get('form').within(() => {
+      cy.get('select').first().select('Juan Pérez');
+      cy.contains('button', '+ Agregar producto').click();
+      cy.contains('Total de productos:').should('contain', '$3.500,00');
+      cy.contains('label', 'Monto').next('input').type('3500');
+      cy.contains('button', 'Registrar venta').click();
+    });
+
+    cy.wait('@fn_register-sale')
+      .its('request.body.items')
+      .should('deep.equal', [{ product_id: 'prod-1', quantity: 1, unit_price: 3500 }]);
+  });
+
   it('no deja registrar una venta sin ningún monto cargado', () => {
     seedSales();
     cy.loginAs('/ventas');

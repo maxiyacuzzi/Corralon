@@ -16,12 +16,19 @@ interface PaymentInput {
   check?: CheckDetails | null
 }
 
+interface SaleItemInput {
+  product_id: string
+  quantity: number
+  unit_price: number
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
-  const { client_id, delivery_note_ids, payments, is_formal } = await req.json() as {
+  const { client_id, delivery_note_ids, items, payments, is_formal } = await req.json() as {
     client_id: string
     delivery_note_ids?: string[]
+    items?: SaleItemInput[]
     payments: PaymentInput[]
     is_formal?: boolean
   }
@@ -58,6 +65,7 @@ serve(async (req) => {
     .from('sales')
     .insert({
       client_id,
+      items: items && items.length > 0 ? items : null,
       total_amount,
       payment_method,
       is_formal: is_formal ?? false,
@@ -72,6 +80,26 @@ serve(async (req) => {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
+  }
+
+  // Descontar del stock los productos cargados directo en la venta (sin remito previo)
+  if (items && items.length > 0) {
+    for (const item of items) {
+      const { error: movementError } = await supabase.functions.invoke('register-stock-movement', {
+        body: {
+          product_id: item.product_id,
+          type: 'sale_out',
+          quantity: -item.quantity,
+          reference_id: sale.id,
+        },
+      })
+      if (movementError) {
+        return new Response(JSON.stringify({ error: movementError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
   }
 
   // Registrar el detalle de formas de pago
