@@ -108,7 +108,7 @@ describe('Ventas', () => {
     cy.contains('button', 'Nueva venta').click();
     cy.get('form').within(() => {
       // la línea de pago arranca sin monto -> total final $0,00, el botón queda deshabilitado
-      cy.contains('Total: $0,00').should('be.visible');
+      cy.contains('Total: $0,00').scrollIntoView().should('be.visible');
       cy.contains('button', 'Registrar venta').should('be.disabled');
     });
   });

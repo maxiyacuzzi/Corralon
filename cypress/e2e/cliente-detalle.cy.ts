@@ -81,9 +81,11 @@ describe('Detalle de cliente', () => {
 
     cy.contains('Sin direcciones de obra registradas.').should('be.visible');
     cy.contains('button', 'Agregar dirección').click();
-    cy.get('input[placeholder*="Obra Ruta 9"]').type('Obra Barrio Norte');
-    cy.get('input[placeholder="Dirección"]').type('Ruta 9 km 45');
-    cy.contains('button', 'Agregar').click();
+    cy.get('form').within(() => {
+      cy.get('input[placeholder*="Obra Ruta 9"]').type('Obra Barrio Norte');
+      cy.get('input[placeholder="Dirección"]').type('Ruta 9 km 45');
+      cy.contains('button', 'Agregar').click();
+    });
 
     cy.wait('@insertWorkAddress').its('request.body').should('deep.include', {
       client_id: 'cli-1',

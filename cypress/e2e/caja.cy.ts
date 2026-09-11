@@ -60,6 +60,7 @@ describe('Caja', () => {
 
   it('registra un cierre de caja y calcula el sobrante', () => {
     seedCaja();
+    cy.intercept('POST', '**/rest/v1/cash_closings*').as('insertClosing');
     cy.loginAs('/caja');
 
     cy.contains('button', 'Nuevo cierre').click();
@@ -70,7 +71,7 @@ describe('Caja', () => {
 
     cy.contains('button', 'Cerrar caja').click();
 
-    cy.wait('@supabaseRest').its('request.body').should('deep.include', {
+    cy.wait('@insertClosing').its('request.body').should('deep.include', {
       expected_cash: 10000,
       counted_cash: 10500,
       transfer_total: 5000,
