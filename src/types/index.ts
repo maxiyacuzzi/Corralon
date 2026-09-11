@@ -118,6 +118,20 @@ export interface SalePayment {
   created_at: string;
 }
 
+export interface CashClosing {
+  id: string;
+  period_start: string | null; // null = desde el inicio de los registros (primer cierre)
+  period_end: string;
+  expected_cash: number; // efectivo que debería haber según las ventas del período
+  counted_cash: number; // efectivo contado a mano al momento del cierre
+  difference: number; // counted_cash - expected_cash (+ sobrante, - faltante)
+  transfer_total: number; // informativo, no se arquea
+  checks_total: number; // informativo, no se arquea
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
 export interface Sale {
   id: string;
   client_id: string;
