@@ -4,7 +4,7 @@ import { Plus, Search, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
-import { formatCurrency } from '../lib/format';
+import { formatCurrency, formatDateOnly } from '../lib/format';
 import type { Check, CheckStatus, Client, OwnCheck, OwnCheckStatus } from '../types';
 
 const statusLabels: Record<CheckStatus, string> = {
@@ -68,10 +68,20 @@ function isOwnCheckOverdue(check: OwnCheck): boolean {
   return check.status === 'pending' && check.due_date < new Date().toISOString().slice(0, 10);
 }
 
+// Cuenta corriente: positivo = el cliente debe, negativo = saldo a favor del cliente.
+function balanceLabel(balance: number): string {
+  if (balance > 0) return `debe ${formatCurrency(balance)}`;
+  if (balance < 0) return `saldo a favor ${formatCurrency(-balance)}`;
+  return 'al día';
+}
+
 function NewCheckForm({ clients, onSaved, onCancel }: { clients: Client[]; onSaved: () => void; onCancel: () => void }) {
   const [clientId, setClientId] = useState(clients[0]?.id ?? '');
   const [checkNumber, setCheckNumber] = useState('');
   const [bank, setBank] = useState('');
+  const [holderName, setHolderName] = useState('');
+  const [holderTaxId, setHolderTaxId] = useState('');
+  const [emissionDate, setEmissionDate] = useState('');
   const [amount, setAmount] = useState('');
   const [issueDate, setIssueDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [dueDate, setDueDate] = useState('');
@@ -79,6 +89,9 @@ function NewCheckForm({ clients, onSaved, onCancel }: { clients: Client[]; onSav
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string>();
+
+  const currentBalance = Number(clients.find((c) => c.id === clientId)?.account_balance ?? 0);
+  const balanceAfter = Math.round((currentBalance - (Number(amount) || 0)) * 100) / 100;
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -90,6 +103,9 @@ function NewCheckForm({ clients, onSaved, onCancel }: { clients: Client[]; onSav
       sale_id: null,
       check_number: checkNumber,
       bank,
+      holder_name: holderName,
+      holder_tax_id: holderTaxId,
+      emission_date: emissionDate,
       amount: Number(amount),
       issue_date: issueDate,
       due_date: dueDate,
@@ -162,6 +178,38 @@ function NewCheckForm({ clients, onSaved, onCancel }: { clients: Client[]; onSav
 
       <div className="grid grid-cols-2 gap-4">
         <div>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Titular del cheque</label>
+          <input
+            required
+            value={holderName}
+            onChange={(e) => setHolderName(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">CUIT del titular</label>
+          <input
+            required
+            value={holderTaxId}
+            onChange={(e) => setHolderTaxId(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
+            placeholder="20-12345678-9"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Fecha de emisión</label>
+          <input
+            required
+            type="date"
+            value={emissionDate}
+            onChange={(e) => setEmissionDate(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
+          />
+        </div>
+        <div>
           <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Fecha recibido</label>
           <input
             required
@@ -187,6 +235,22 @@ function NewCheckForm({ clients, onSaved, onCancel }: { clients: Client[]; onSav
         <input type="checkbox" checked={isDeferred} onChange={(e) => setIsDeferred(e.target.checked)} />
         Cheque de pago diferido
       </label>
+
+      {clientId && (
+        <div className="rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-3 text-sm text-gray-500 dark:text-gray-400 space-y-1">
+          <p>Se registra como cobro a cuenta: entra en Caja y se descuenta de la cuenta corriente del cliente.</p>
+          <p>
+            Cuenta corriente actual:{' '}
+            <span className={`font-medium ${currentBalance > 0 ? 'text-red-500' : 'text-green-500'}`}>{balanceLabel(currentBalance)}</span>
+            {(Number(amount) || 0) > 0 && (
+              <>
+                {' → después del cheque: '}
+                <span className={`font-medium ${balanceAfter > 0 ? 'text-red-500' : 'text-green-500'}`}>{balanceLabel(balanceAfter)}</span>
+              </>
+            )}
+          </p>
+        </div>
+      )}
 
       <div>
         <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Notas (opcional)</label>
@@ -406,7 +470,9 @@ function ReceivedChecks() {
     return (
       clientName.toLowerCase().includes(term) ||
       check.bank.toLowerCase().includes(term) ||
-      check.check_number.toLowerCase().includes(term)
+      check.check_number.toLowerCase().includes(term) ||
+      (check.holder_name ?? '').toLowerCase().includes(term) ||
+      (check.holder_tax_id ?? '').includes(term)
     );
   });
 
@@ -418,7 +484,7 @@ function ReceivedChecks() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por cliente, banco o N.º de cheque..."
+            placeholder="Buscar por cliente, titular, CUIT, banco o N.º de cheque..."
             className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 pl-9 pr-3 py-2 text-gray-900 dark:text-white"
           />
         </div>
@@ -456,9 +522,11 @@ function ReceivedChecks() {
             <thead>
               <tr className="text-left text-gray-500 dark:text-gray-400 border-b border-gray-300 dark:border-gray-700">
                 <th className="px-5 py-3">Cliente</th>
+                <th className="px-5 py-3">Titular</th>
                 <th className="px-5 py-3">Banco</th>
                 <th className="px-5 py-3">N.º</th>
                 <th className="px-5 py-3">Monto</th>
+                <th className="px-5 py-3">Emisión</th>
                 <th className="px-5 py-3">Recibido</th>
                 <th className="px-5 py-3">Cobro</th>
                 <th className="px-5 py-3">Tipo</th>
@@ -470,12 +538,19 @@ function ReceivedChecks() {
               {filteredChecks.map((check) => (
                 <tr key={check.id} className="border-b border-gray-200 dark:border-gray-800 last:border-0">
                   <td className="px-5 py-3 text-gray-900 dark:text-white font-medium">{clientsById[check.client_id]?.name ?? '—'}</td>
+                  <td className="px-5 py-3 text-gray-600 dark:text-gray-300">
+                    {check.holder_name ?? '—'}
+                    {check.holder_tax_id && <span className="block text-xs text-gray-500 dark:text-gray-400">CUIT {check.holder_tax_id}</span>}
+                  </td>
                   <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{check.bank}</td>
                   <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{check.check_number}</td>
                   <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{formatCurrency(check.amount)}</td>
-                  <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{new Date(check.issue_date).toLocaleDateString('es-AR')}</td>
+                  <td className="px-5 py-3 text-gray-500 dark:text-gray-400">
+                    {check.emission_date ? formatDateOnly(check.emission_date) : '—'}
+                  </td>
+                  <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{formatDateOnly(check.issue_date)}</td>
                   <td className={`px-5 py-3 ${isOverdue(check) ? 'text-red-500 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
-                    {new Date(check.due_date).toLocaleDateString('es-AR')}
+                    {formatDateOnly(check.due_date)}
                     {isOverdue(check) && ' (vencido)'}
                   </td>
                   <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{check.is_deferred ? 'Diferido' : 'Común'}</td>
@@ -609,9 +684,9 @@ function IssuedChecks() {
                   <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{check.bank}</td>
                   <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{check.check_number}</td>
                   <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{formatCurrency(check.amount)}</td>
-                  <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{new Date(check.issue_date).toLocaleDateString('es-AR')}</td>
+                  <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{formatDateOnly(check.issue_date)}</td>
                   <td className={`px-5 py-3 ${isOwnCheckOverdue(check) ? 'text-red-500 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
-                    {new Date(check.due_date).toLocaleDateString('es-AR')}
+                    {formatDateOnly(check.due_date)}
                     {isOwnCheckOverdue(check) && ' (vencido)'}
                   </td>
                   <td className="px-5 py-3">

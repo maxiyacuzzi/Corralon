@@ -75,7 +75,7 @@ describe('Ventas', () => {
       cy.get('select').first().select('Juan Pérez');
       cy.contains('Remito N.º 000001').should('be.visible');
       cy.contains('Remito N.º 000001').parent().find('input[type="checkbox"]').check();
-      cy.contains('label', 'Monto').next('input').type('35000');
+      cy.contains('label', 'Monto').next('input').clear().type('35000');
       cy.contains('button', 'Registrar venta').click();
     });
 
@@ -92,13 +92,86 @@ describe('Ventas', () => {
       cy.get('select').first().select('Juan Pérez');
       cy.contains('button', '+ Agregar producto').click();
       cy.contains('Total de productos:').should('contain', '$3.500,00');
-      cy.contains('label', 'Monto').next('input').type('3500');
+      cy.contains('label', 'Monto').next('input').should('have.value', '3500');
       cy.contains('button', 'Registrar venta').click();
     });
 
     cy.wait('@fn_register-sale')
       .its('request.body.items')
       .should('deep.equal', [{ product_id: 'prod-1', quantity: 1, unit_price: 3500 }]);
+  });
+
+  it('muestra la cuenta corriente actual del cliente elegido', () => {
+    seedSales();
+    cy.loginAs('/ventas');
+
+    cy.contains('button', 'Nueva venta').click();
+    cy.get('form').within(() => {
+      cy.get('select').first().select('Constructora Sur SRL');
+      cy.contains('Cuenta corriente actual:').should('contain', 'debe $15.000,00');
+      cy.get('select').first().select('Juan Pérez');
+      cy.contains('Cuenta corriente actual:').should('contain', 'al día');
+    });
+  });
+
+  it('si el cliente entrega menos, el saldo queda debiendo en su cuenta corriente', () => {
+    seedSales();
+    mockFunction('register-sale', { statusCode: 200, body: { data: { ok: true } } });
+    cy.loginAs('/ventas');
+
+    cy.contains('button', 'Nueva venta').click();
+    cy.get('form').within(() => {
+      cy.get('select').first().select('Juan Pérez');
+      cy.contains('button', '+ Agregar producto').click();
+      cy.contains('label', 'Monto').next('input').clear().type('2000');
+      cy.contains('Queda debiendo $1.500,00').should('be.visible');
+      cy.contains('Cuenta corriente después de la venta:').should('contain', 'debe $1.500,00');
+      cy.contains('button', 'Registrar venta').click();
+    });
+
+    cy.wait('@fn_register-sale')
+      .its('request.body.payments.0')
+      .should('deep.include', { method: 'cash', amount: 2000, covered_amount: 2000 });
+  });
+
+  it('si el cliente entrega de más, le queda saldo a favor', () => {
+    seedSales();
+    cy.loginAs('/ventas');
+
+    cy.contains('button', 'Nueva venta').click();
+    cy.get('form').within(() => {
+      cy.get('select').first().select('Juan Pérez');
+      cy.contains('button', '+ Agregar producto').click();
+      cy.contains('label', 'Monto').next('input').clear().type('4000');
+      cy.contains('queda $500,00 a favor del cliente').should('be.visible');
+      cy.contains('Cuenta corriente después de la venta:').should('contain', 'saldo a favor $500,00');
+    });
+  });
+
+  it('envía titular, CUIT y fecha de emisión del cheque al pagar con Valores', () => {
+    seedSales();
+    mockFunction('register-sale', { statusCode: 200, body: { data: { ok: true } } });
+    cy.loginAs('/ventas');
+
+    cy.contains('button', 'Nueva venta').click();
+    cy.get('form').within(() => {
+      cy.get('select').first().select('Juan Pérez');
+      cy.contains('button', '+ Agregar producto').click();
+      cy.contains('label', 'Formas de pago').parent().find('select').first().select('Valores');
+      cy.get('input[placeholder="Banco"]').type('Banco Nación');
+      cy.get('input[placeholder="N.º de cheque"]').type('00055555');
+      cy.get('input[placeholder="Titular del cheque"]').type('Materiales del Norte SA');
+      cy.get('input[placeholder="CUIT del titular"]').type('30-33333333-3');
+      cy.contains('label', 'Fecha de emisión').next('input').type('2026-09-20');
+      cy.contains('label', 'Fecha de cobro').next('input').type('2026-10-20');
+      cy.contains('button', 'Registrar venta').click();
+    });
+
+    cy.wait('@fn_register-sale').its('request.body.payments.0.check').should('deep.include', {
+      holder_name: 'Materiales del Norte SA',
+      holder_tax_id: '30-33333333-3',
+      emission_date: '2026-09-20',
+    });
   });
 
   it('no deja registrar una venta sin ningún monto cargado', () => {
@@ -108,7 +181,7 @@ describe('Ventas', () => {
     cy.contains('button', 'Nueva venta').click();
     cy.get('form').within(() => {
       // la línea de pago arranca sin monto -> total final $0,00, el botón queda deshabilitado
-      cy.contains('Total: $0,00').scrollIntoView().should('be.visible');
+      cy.contains('Total cobrado: $0,00').scrollIntoView().should('be.visible');
       cy.contains('button', 'Registrar venta').should('be.disabled');
     });
   });

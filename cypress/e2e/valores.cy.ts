@@ -8,6 +8,9 @@ const CHECK_IN_WALLET = {
   check_number: '00012345',
   bank: 'Banco Galicia',
   amount: 50000,
+  holder_name: 'Materiales del Norte SA',
+  holder_tax_id: '30-33333333-3',
+  emission_date: '2025-12-28',
   issue_date: '2026-01-01',
   due_date: '2026-01-20',
   is_deferred: false,
@@ -25,6 +28,9 @@ describe('Valores', () => {
     cy.contains('tr', 'Juan Pérez').within(() => {
       cy.contains('Banco Galicia');
       cy.contains('00012345');
+      cy.contains('Materiales del Norte SA');
+      cy.contains('CUIT 30-33333333-3');
+      cy.contains('28/12/2025');
       cy.contains('En cartera');
     });
   });
@@ -45,6 +51,9 @@ describe('Valores', () => {
     cy.get('form').within(() => {
       cy.contains('label', 'Banco').next('input').type('Banco Nación');
       cy.contains('label', 'N.º de cheque').next('input').type('00098765');
+      cy.contains('label', 'Titular del cheque').next('input').type('Juan Pérez');
+      cy.contains('label', 'CUIT del titular').next('input').type('20-11111111-1');
+      cy.contains('label', 'Fecha de emisión').next('input').type('2026-01-15');
       cy.contains('label', 'Monto').next('input').type('20000');
       cy.contains('label', 'Fecha de cobro').next('input').type('2026-03-01');
       cy.contains('button', 'Guardar cheque').click();
@@ -69,6 +78,19 @@ describe('Valores', () => {
     });
   });
 
+  it('al cargar un cheque muestra la cuenta corriente del cliente antes y después', () => {
+    mockSupabase({ profiles: [OWNER_PROFILE], clients: baseClients(), checks: [] });
+    cy.loginAs('/valores');
+
+    cy.contains('button', 'Nuevo cheque').click();
+    cy.get('form').within(() => {
+      cy.get('select').first().select('Constructora Sur SRL');
+      cy.contains('Cuenta corriente actual:').should('contain', 'debe $15.000,00');
+      cy.contains('label', 'Monto').next('input').type('20000');
+      cy.contains('después del cheque').parent().should('contain', 'saldo a favor $5.000,00');
+    });
+  });
+
   it('muestra un error si falla el guardado y no cierra el formulario', () => {
     mockSupabase({ profiles: [OWNER_PROFILE], clients: baseClients(), checks: [] });
     cy.loginAs('/valores');
@@ -81,6 +103,9 @@ describe('Valores', () => {
     cy.get('form').within(() => {
       cy.contains('label', 'Banco').next('input').type('Banco Nación');
       cy.contains('label', 'N.º de cheque').next('input').type('00098765');
+      cy.contains('label', 'Titular del cheque').next('input').type('Juan Pérez');
+      cy.contains('label', 'CUIT del titular').next('input').type('20-11111111-1');
+      cy.contains('label', 'Fecha de emisión').next('input').type('2026-01-15');
       cy.contains('label', 'Monto').next('input').type('20000');
       cy.contains('label', 'Fecha de cobro').next('input').type('2026-03-01');
       cy.contains('button', 'Guardar cheque').click();

@@ -88,6 +88,17 @@ export function SalePreview({ sale, client, deliveryNotes, payments, productsByI
       <div className="flex justify-end mt-4 pt-4 border-t border-gray-200">
         <p className="text-lg font-semibold text-gray-900">Total: {formatCurrency(sale.total_amount)}</p>
       </div>
+
+      {(sale.account_balance_change ?? 0) > 0 && (
+        <p className="mt-2 text-right text-sm text-gray-700">
+          Saldo pendiente (a cuenta corriente): {formatCurrency(sale.account_balance_change)}
+        </p>
+      )}
+      {(sale.account_balance_change ?? 0) < 0 && (
+        <p className="mt-2 text-right text-sm text-gray-700">
+          Saldo a favor del cliente: {formatCurrency(-sale.account_balance_change)}
+        </p>
+      )}
     </div>
   );
 }

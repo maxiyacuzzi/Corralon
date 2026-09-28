@@ -120,7 +120,12 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
   `products.category_id` / `products.supplier_id` (ambos nullable, on
   delete set null); `008_sale_payments.sql` crea `sale_payments` (una
   venta puede pagarse combinando varias formas de pago) y permite
-  `sales.payment_method = 'mixed'`.
+  `sales.payment_method = 'mixed'`; `015_sale_account_balance.sql` agrega
+  `sales.account_balance_change` (ver cuenta corriente abajo);
+  `016_check_holder.sql` agrega a `checks` titular (`holder_name`), CUIT
+  (`holder_tax_id`) y fecha de emisión (`emission_date`);
+  `017_check_account_balance.sql` agrega el trigger de cheques sobre la
+  cuenta corriente (ver `checks` abajo).
 
 ## Modelo de dominio (clave)
 
@@ -165,12 +170,30 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
   — para el detalle real, siempre leer `sale_payments`. En `quotes`,
   `discount_percent` sigue siendo un único valor (representa el
   descuento que se aplicaría si el cliente paga todo en efectivo).
+- Cuenta corriente (`clients.account_balance`: + el cliente debe, − saldo
+  a favor). La mueve solo `register-sale`: calcula del lado servidor el
+  total de la venta (ítems + remitos a precio actual) y le resta lo que
+  cubren los pagos (`covered_amount` de cada línea, el monto antes del
+  descuento por efectivo). La diferencia se suma al saldo y queda en
+  `sales.account_balance_change`. En el formulario, el monto de la primera
+  forma de pago arranca con el total de la venta. Una venta sin ítems ni
+  remitos (monto libre, o `convert-quote`) no mueve la cuenta.
 - `checks`: cheques recibidos. `register-sale` crea una fila de `checks`
   por cada línea de `sale_payments` con `method = 'checks'` que traiga
   datos de cheque (queda con `sale_id` seteado), o se cargan
   manualmente desde la página Valores (`sale_id` null). Estados:
   `in_wallet` → `deposited` → `cleared`, o `rejected` / `delivered` en
   cualquier punto antes de `cleared`.
+  Un cheque cargado suelto (`sale_id` null) es un **cobro a cuenta**: el
+  trigger `checks_account_balance` le descuenta el monto a
+  `clients.account_balance`, y la Caja lo suma como ingreso en Valores
+  (los cheques de venta ya están en `sale_payments`, no se cuentan dos
+  veces). Si cualquier cheque pasa a `rejected`, el mismo trigger le
+  vuelve a sumar el monto a la cuenta corriente.
+  Ojo: `checks.issue_date` es la fecha en que se **recibió** el cheque (UI
+  "Recibido"), no la de emisión — esa es `emission_date`. Las columnas
+  `date` se muestran con `formatDateOnly` (`src/lib/format.ts`), no con
+  `new Date(...)`, que las corre un día en Argentina (UTC-3).
 - `DeliveryNotePreview`, `QuotePreview` y `SalePreview` son la excepción
   al tema oscuro del resto de la app: siempre fondo blanco/texto oscuro
   (look "papel"), a propósito — son la misma vista que se imprime y que

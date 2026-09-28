@@ -39,13 +39,33 @@ const CLIENT = {
   created_at: '2026-01-01T00:00:00.000Z',
 };
 
-function seedCaja(closings: unknown[] = []) {
+// Cheque cargado suelto desde Valores (cobro a cuenta, sin venta).
+const ACCOUNT_CHECK = {
+  id: 'chk-1',
+  client_id: 'cli-1',
+  sale_id: null,
+  check_number: '00012345',
+  bank: 'Banco Galicia',
+  amount: 20000,
+  issue_date: '2026-01-01',
+  due_date: '2026-01-20',
+  is_deferred: false,
+  status: 'in_wallet',
+  notes: null,
+  created_at: new Date().toISOString(),
+};
+
+// Cheque que vino de una venta: ya está contado en sale_payments, no se suma dos veces.
+const SALE_CHECK = { ...ACCOUNT_CHECK, id: 'chk-2', sale_id: 'sale-1', amount: 99999 };
+
+function seedCaja(closings: unknown[] = [], checks: unknown[] = []) {
   mockSupabase({
     profiles: [OWNER_PROFILE],
     sales: [SALE],
     sale_payments: [CASH_PAYMENT, TRANSFER_PAYMENT],
     clients: [CLIENT],
     cash_closings: closings,
+    checks,
   });
 }
 
@@ -56,6 +76,17 @@ describe('Caja', () => {
 
     cy.contains('h1', 'Caja').should('be.visible');
     cy.contains('Ingresos de hoy').parents('.rounded-xl').first().should('contain', '$15.000,00');
+  });
+
+  it('suma a la caja los cheques cargados sueltos como cobro a cuenta', () => {
+    seedCaja([], [ACCOUNT_CHECK, SALE_CHECK]);
+    cy.loginAs('/caja');
+
+    cy.contains('Ingresos de hoy').parents('.rounded-xl').first().should('contain', '$35.000,00');
+    cy.contains('tr', 'Cobro a cuenta').should('contain', '$20.000,00').and('contain', 'Valores');
+
+    cy.contains('button', 'Nuevo cierre').click();
+    cy.contains('Cheques del período').parents('.rounded-lg').first().should('contain', '$20.000,00');
   });
 
   it('registra un cierre de caja y calcula el sobrante', () => {
