@@ -43,6 +43,26 @@ export interface Supplier {
   created_at: string;
 }
 
+export interface PurchaseItem {
+  product_id: string;
+  quantity: number; // tal como se cargó, en la unidad de `unit`
+  unit: 'bulk' | 'retail';
+  unit_cost: number; // costo por unidad de `unit`
+  retail_quantity: number; // lo que se sumó al stock, en retail_unit
+}
+
+export interface Purchase {
+  id: string;
+  supplier_id: string;
+  purchase_date: string; // 'YYYY-MM-DD'
+  payment_method: PaymentMethod;
+  items: PurchaseItem[];
+  total_amount: number;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
 export interface StockMovement {
   id: string;
   product_id: string;
