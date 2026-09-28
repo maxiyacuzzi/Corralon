@@ -157,6 +157,7 @@ export interface Sale {
   payment_method: PaymentMethod | 'mixed'; // resumen: 'mixed' si combina más de una forma de pago
   is_formal: boolean; // false = comprobante informal ("en negro")
   discount_percent: number; // solo significativo si payment_method no es 'mixed'; ver sale_payments para el detalle
+  account_balance_change: number; // lo que la venta sumó a la cuenta corriente: + quedó debiendo, - entregó de más
   created_by: string | null;
   created_at: string;
 }
@@ -177,7 +178,10 @@ export interface Check {
   check_number: string;
   bank: string;
   amount: number;
-  issue_date: string; // cuándo se recibió
+  holder_name: string | null; // titular del cheque (puede no ser el cliente), null en cheques viejos
+  holder_tax_id: string | null; // CUIT del titular
+  emission_date: string | null; // fecha de emisión que figura en el cheque
+  issue_date: string; // cuándo se recibió (a pesar del nombre, NO es la fecha de emisión)
   due_date: string; // cuándo se cobra
   is_deferred: boolean; // cheque de pago diferido vs. cheque común
   status: CheckStatus;

@@ -22,6 +22,9 @@ interface PaymentLineState {
   discountPercent: string;
   checkBank: string;
   checkNumber: string;
+  checkHolderName: string;
+  checkHolderTaxId: string;
+  checkEmissionDate: string;
   checkDueDate: string;
   checkIsDeferred: boolean;
 }
@@ -33,6 +36,9 @@ function emptyPaymentLine(): PaymentLineState {
     discountPercent: '0',
     checkBank: '',
     checkNumber: '',
+    checkHolderName: '',
+    checkHolderTaxId: '',
+    checkEmissionDate: '',
     checkDueDate: '',
     checkIsDeferred: false,
   };
@@ -42,6 +48,17 @@ function paymentLineFinalAmount(line: PaymentLineState): number {
   const raw = Number(line.amount) || 0;
   const discount = line.method === 'cash' ? Number(line.discountPercent) || 0 : 0;
   return raw * (1 - discount / 100);
+}
+
+function roundCents(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+// Cuenta corriente: positivo = el cliente debe, negativo = saldo a favor del cliente.
+function balanceLabel(balance: number): string {
+  if (balance > 0) return `debe ${formatCurrency(balance)}`;
+  if (balance < 0) return `saldo a favor ${formatCurrency(-balance)}`;
+  return 'al día';
 }
 
 function NewSaleForm({
@@ -65,6 +82,8 @@ function NewSaleForm({
   const [selectedNoteIds, setSelectedNoteIds] = useState<string[]>([]);
   const [items, setItems] = useState<SaleItem[]>([]);
   const [paymentLines, setPaymentLines] = useState<PaymentLineState[]>([emptyPaymentLine()]);
+  // Mientras no se toque ningún monto, la primera forma de pago sigue al total de la venta.
+  const [amountEdited, setAmountEdited] = useState(false);
   const [isFormal, setIsFormal] = useState(false);
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string>();
@@ -75,7 +94,16 @@ function NewSaleForm({
     return sum + (note ? deliveryNoteTotal(note, productsById) : 0);
   }, 0);
   const itemsSubtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
-  const totalFinal = paymentLines.reduce((sum, line) => sum + paymentLineFinalAmount(line), 0);
+  const saleTotal = roundCents(selectedNotesTotal + itemsSubtotal);
+  const lines =
+    amountEdited || saleTotal <= 0
+      ? paymentLines
+      : paymentLines.map((line, i) => (i === 0 ? { ...line, amount: String(saleTotal) } : line));
+  const totalFinal = lines.reduce((sum, line) => sum + paymentLineFinalAmount(line), 0);
+  // Parte del total que cubren los pagos, antes del descuento por efectivo.
+  const coveredAmount = lines.reduce((sum, line) => sum + (Number(line.amount) || 0), 0);
+  const balanceChange = saleTotal > 0 ? roundCents(saleTotal - coveredAmount) : 0;
+  const currentBalance = Number(clients.find((c) => c.id === clientId)?.account_balance ?? 0);
 
   function toggleNote(id: string) {
     setSelectedNoteIds((prev) => (prev.includes(id) ? prev.filter((n) => n !== id) : [...prev, id]));
@@ -94,15 +122,19 @@ function NewSaleForm({
   }
 
   function updateLine(index: number, patch: Partial<PaymentLineState>) {
-    setPaymentLines((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)));
+    if ('amount' in patch) setAmountEdited(true);
+    setPaymentLines(lines.map((line, i) => (i === index ? { ...line, ...patch } : line)));
   }
 
   function addLine() {
-    setPaymentLines((prev) => [...prev, emptyPaymentLine()]);
+    const remaining = roundCents(saleTotal - coveredAmount);
+    setAmountEdited(true);
+    setPaymentLines([...lines, { ...emptyPaymentLine(), amount: remaining > 0 ? String(remaining) : '' }]);
   }
 
   function removeLine(index: number) {
-    setPaymentLines((prev) => prev.filter((_, i) => i !== index));
+    setAmountEdited(true);
+    setPaymentLines(lines.filter((_, i) => i !== index));
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -110,15 +142,19 @@ function NewSaleForm({
     setStatus('saving');
     setErrorMessage(undefined);
 
-    const payments = paymentLines.map((line) => ({
+    const payments = lines.map((line) => ({
       method: line.method,
       amount: paymentLineFinalAmount(line),
+      covered_amount: Number(line.amount) || 0,
       discount_percent: line.method === 'cash' ? Number(line.discountPercent) || 0 : 0,
       check:
         line.method === 'checks'
           ? {
               bank: line.checkBank,
               check_number: line.checkNumber,
+              holder_name: line.checkHolderName,
+              holder_tax_id: line.checkHolderTaxId,
+              emission_date: line.checkEmissionDate,
               due_date: line.checkDueDate,
               is_deferred: line.checkIsDeferred,
             }
@@ -163,6 +199,14 @@ function NewSaleForm({
             </option>
           ))}
         </select>
+        {clientId && (
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Cuenta corriente actual:{' '}
+            <span className={`font-medium ${currentBalance > 0 ? 'text-red-500' : 'text-green-500'}`}>
+              {balanceLabel(currentBalance)}
+            </span>
+          </p>
+        )}
       </div>
 
       <div>
@@ -194,7 +238,7 @@ function NewSaleForm({
         )}
         {selectedNoteIds.length > 0 && (
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            Total de remitos seleccionados (a precio actual): <span className="text-gray-900 dark:text-white font-medium">{formatCurrency(selectedNotesTotal)}</span> — repartilo entre las formas de pago de abajo.
+            Total de remitos seleccionados (a precio actual): <span className="text-gray-900 dark:text-white font-medium">{formatCurrency(selectedNotesTotal)}</span>
           </p>
         )}
       </div>
@@ -249,14 +293,14 @@ function NewSaleForm({
         </button>
         {items.length > 0 && (
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Total de productos: <span className="text-gray-900 dark:text-white font-medium">{formatCurrency(itemsSubtotal)}</span> — repartilo entre las formas de pago de abajo.
+            Total de productos: <span className="text-gray-900 dark:text-white font-medium">{formatCurrency(itemsSubtotal)}</span>
           </p>
         )}
       </div>
 
       <div className="space-y-3">
         <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Formas de pago</label>
-        {paymentLines.map((line, index) => (
+        {lines.map((line, index) => (
           <div key={index} className="space-y-3 rounded-lg border border-gray-300 dark:border-gray-700 p-4">
             <div className="flex items-center gap-3">
               <select
@@ -271,7 +315,7 @@ function NewSaleForm({
               <button
                 type="button"
                 onClick={() => removeLine(index)}
-                disabled={paymentLines.length === 1}
+                disabled={lines.length === 1}
                 className="text-gray-500 dark:text-gray-400 hover:text-red-500 disabled:opacity-30"
               >
                 <Trash2 size={16} />
@@ -330,8 +374,32 @@ function NewSaleForm({
                     placeholder="N.º de cheque"
                     className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
                   />
+                  <input
+                    required
+                    value={line.checkHolderName}
+                    onChange={(e) => updateLine(index, { checkHolderName: e.target.value })}
+                    placeholder="Titular del cheque"
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
+                  />
+                  <input
+                    required
+                    value={line.checkHolderTaxId}
+                    onChange={(e) => updateLine(index, { checkHolderTaxId: e.target.value })}
+                    placeholder="CUIT del titular"
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
+                  />
                 </div>
-                <div className="grid grid-cols-2 gap-4 items-end">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Fecha de emisión</label>
+                    <input
+                      required
+                      type="date"
+                      value={line.checkEmissionDate}
+                      onChange={(e) => updateLine(index, { checkEmissionDate: e.target.value })}
+                      className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
+                    />
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Fecha de cobro</label>
                     <input
@@ -360,7 +428,30 @@ function NewSaleForm({
         </button>
       </div>
 
-      <p className="text-right text-gray-900 dark:text-white font-medium">Total: {formatCurrency(totalFinal)}</p>
+      <div className="space-y-1 text-right text-sm">
+        {saleTotal > 0 && (
+          <p className="text-gray-500 dark:text-gray-400">
+            Total de la venta: <span className="text-gray-900 dark:text-white font-medium">{formatCurrency(saleTotal)}</span>
+          </p>
+        )}
+        <p className="text-base text-gray-900 dark:text-white font-medium">Total cobrado: {formatCurrency(totalFinal)}</p>
+        {balanceChange > 0 && (
+          <p className="text-red-500 font-medium">Queda debiendo {formatCurrency(balanceChange)} (se suma a su cuenta corriente)</p>
+        )}
+        {balanceChange < 0 && (
+          <p className="text-green-500 font-medium">
+            Entregó de más: queda {formatCurrency(-balanceChange)} a favor del cliente en su cuenta corriente
+          </p>
+        )}
+        {balanceChange !== 0 && (
+          <p className="text-gray-500 dark:text-gray-400">
+            Cuenta corriente después de la venta:{' '}
+            <span className={`font-medium ${currentBalance + balanceChange > 0 ? 'text-red-500' : 'text-green-500'}`}>
+              {balanceLabel(roundCents(currentBalance + balanceChange))}
+            </span>
+          </p>
+        )}
+      </div>
 
       <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
         <input type="checkbox" checked={isFormal} onChange={(e) => setIsFormal(e.target.checked)} />
@@ -379,7 +470,7 @@ function NewSaleForm({
           </button>
           <button
             type="submit"
-            disabled={status === 'saving' || !clientId || totalFinal <= 0}
+            disabled={status === 'saving' || !clientId || (saleTotal <= 0 && totalFinal <= 0)}
             className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500 disabled:opacity-50"
           >
             Registrar venta
