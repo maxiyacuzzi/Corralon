@@ -37,7 +37,7 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
 ## Tests E2E (Cypress)
 
 - `cypress/e2e/*.cy.ts` — un spec por módulo/página (login, dashboard,
-  categorias, proveedores, productos, stock, acopios, clientes,
+  categorias, proveedores, compras, productos, stock, acopios, clientes,
   cliente-detalle, presupuestos, remitos, ventas, valores). Cubre todas las
   páginas de `src/pages/`.
 - Corren contra un backend **mockeado**, no contra el proyecto Supabase real:
@@ -72,7 +72,7 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
 
 - `src/pages/` — una página por módulo (Products, Categories, Suppliers,
   Stock, Stockpiles, Clients, ClientDetail, Quotes, DeliveryNotes, Sales,
-  Checks, Dashboard, Login).
+  Purchases, Checks, Dashboard, Login).
 - `src/components/` — formularios y piezas de UI reutilizadas entre páginas.
 - `src/context/AuthContext.tsx` — sesión y rol de usuario (Supabase Auth).
 - `src/lib/supabase.ts` — cliente Supabase.
@@ -102,7 +102,7 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
   `supabase/migrations/001_initial.sql`.
 - `supabase/functions/` — Edge Functions (Deno): `register-stock-movement`,
   `withdraw-stockpile`, `generate-delivery-note`, `register-sale`,
-  `convert-quote`. La lógica que debe ser transaccional o validada del lado
+  `convert-quote`, `register-purchase`. La lógica que debe ser transaccional o validada del lado
   servidor vive acá, no en el cliente. Las funciones se componen entre sí
   vía `supabase.functions.invoke` (p. ej. `convert-quote` llama a
   `register-sale` y `register-stock-movement`).
@@ -125,7 +125,8 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
   `016_check_holder.sql` agrega a `checks` titular (`holder_name`), CUIT
   (`holder_tax_id`) y fecha de emisión (`emission_date`);
   `017_check_account_balance.sql` agrega el trigger de cheques sobre la
-  cuenta corriente (ver `checks` abajo).
+  cuenta corriente (ver `checks` abajo); `018_purchases.sql` crea
+  `purchases` (compras a proveedores).
 
 ## Modelo de dominio (clave)
 
@@ -142,9 +143,15 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
   `unit_price` en `DeliveryNoteItem` ni en el formulario de remitos.
 - `categories` y `suppliers` son catálogos simples (nombre + datos de
   contacto) para clasificar productos vía `products.category_id` /
-  `products.supplier_id`. No implementan un flujo de compras a
-  proveedores (eso sigue fuera de alcance del MVP) — son solo datos de
-  referencia.
+  `products.supplier_id`.
+- `purchases`: compras a proveedores (fecha, forma de pago, ítems).
+  `register-purchase` guarda la compra y suma cada producto al stock vía
+  `register-stock-movement` (`purchase_in`, `reference_id` = la compra).
+  Cada ítem guarda cantidad y costo tal como se cargaron (`unit` =
+  `bulk`/`retail`) y `retail_quantity`, lo que se sumó al stock; la
+  conversión con `conversion_factor` la hace la función, no el cliente.
+  No hay cuenta corriente con proveedores ni impacto en Caja (la Caja
+  solo mira ingresos).
 - Editar un producto (`ProductForm` con `product` seteado) nunca toca
   `current_stock`; los cambios de stock siempre pasan por el módulo Stock
   (`register-stock-movement`) para mantener el auditing en
