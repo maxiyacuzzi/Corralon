@@ -10,6 +10,7 @@ import { purchasePaymentLabels } from '../lib/payments';
 import { formatCurrency, formatDateOnly, supplierBalanceLabel } from '../lib/format';
 import { bulkToRetail } from '../lib/units';
 import type { Product, Purchase, PurchaseItem, PurchasePaymentMethod, Supplier } from '../types';
+import { functionErrorMessage } from '../lib/functions';
 
 // Cantidad y costo como texto mientras se editan, para poder borrar el campo sin que vuelva a 0.
 interface ItemState {
@@ -103,9 +104,10 @@ function NewPurchaseForm({
       },
     });
 
-    if (error || (data as { error?: string } | null)?.error) {
+    const failure = await functionErrorMessage(data, error);
+    if (failure) {
       setStatus('error');
-      setErrorMessage((data as { error?: string } | null)?.error ?? 'Error de conexión. Intentá nuevamente.');
+      setErrorMessage(failure);
       return;
     }
 

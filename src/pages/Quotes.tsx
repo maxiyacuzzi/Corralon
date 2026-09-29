@@ -10,6 +10,7 @@ import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
 import { useAuth } from '../context/AuthContext';
 import { formatCurrency } from '../lib/format';
 import type { Client, Product, Profile, Quote, QuoteItem } from '../types';
+import { functionErrorMessage } from '../lib/functions';
 
 const statusLabels: Record<Quote['status'], string> = {
   draft: 'Borrador',
@@ -263,8 +264,9 @@ export function Quotes() {
       body: { quote_id: quote.id, target },
     });
 
-    if (error || (data as { error?: string } | null)?.error) {
-      setConvertError((data as { error?: string } | null)?.error ?? 'Error de conexión. Intentá nuevamente.');
+    const failure = await functionErrorMessage(data, error);
+    if (failure) {
+      setConvertError(failure);
       setConvertingId(null);
       return;
     }

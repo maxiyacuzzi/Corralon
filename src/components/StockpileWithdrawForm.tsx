@@ -4,6 +4,7 @@ import { bulkToRetail, formatStock } from '../lib/units';
 import type { Product, Stockpile } from '../types';
 import type { SaveStatus } from './SaveStatusIndicator';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
+import { functionErrorMessage } from '../lib/functions';
 
 interface StockpileWithdrawFormProps {
   stockpile: Stockpile;
@@ -37,9 +38,10 @@ export function StockpileWithdrawForm({ stockpile, product, onSaved, onCancel }:
       },
     });
 
-    if (error || (data as { error?: string } | null)?.error) {
+    const failure = await functionErrorMessage(data, error);
+    if (failure) {
       setStatus('error');
-      setErrorMessage((data as { error?: string } | null)?.error ?? 'Error de conexión. Intentá nuevamente.');
+      setErrorMessage(failure);
       return;
     }
 

@@ -202,4 +202,22 @@ describe('Compras', () => {
 
     cy.contains('tr', 'Factura A 0001-00001234').should('contain', 'Cuenta corriente');
   });
+
+  it('si la función responde con error 400 muestra el motivo real, no "Error de conexión"', () => {
+    seedPurchases();
+    mockFunction('register-purchase', {
+      statusCode: 400,
+      body: { error: 'null value in column "amount_paid" violates not-null constraint' },
+    });
+    cy.loginAs('/compras');
+
+    cy.contains('button', 'Nueva compra').click();
+    cy.get('form').within(() => {
+      cy.contains('button', '+ Agregar producto').click();
+      cy.contains('button', 'Registrar compra').click();
+    });
+
+    cy.contains('null value in column "amount_paid" violates not-null constraint').should('be.visible');
+    cy.contains('Error de conexión').should('not.exist');
+  });
 });
