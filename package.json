@@ -10,8 +10,10 @@
     "preview": "vite preview",
     "cy:open": "cypress open",
     "cy:run": "cypress run",
+    "cy:run:record": "cypress run --record",
     "test:e2e": "start-server-and-test 'vite --mode test' http://localhost:5173 cy:run",
     "test:e2e:open": "start-server-and-test 'vite --mode test' http://localhost:5173 cy:open",
+    "test:e2e:record": "start-server-and-test 'vite --mode test' http://localhost:5173 cy:run:record",
     "test:e2e:report": "npm run test:e2e; open cypress/reports/index.html"
   },
   "dependencies": {
