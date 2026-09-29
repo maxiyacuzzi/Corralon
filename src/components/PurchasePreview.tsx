@@ -1,4 +1,4 @@
-import { paymentLabels } from '../lib/payments';
+import { purchasePaymentLabels } from '../lib/payments';
 import { formatCurrency, formatDateOnly } from '../lib/format';
 import type { Product, Purchase, Supplier } from '../types';
 
@@ -62,7 +62,8 @@ export function PurchasePreview({ purchase, supplier, productsById }: PurchasePr
           <p className="text-lg font-semibold text-gray-900">Total: {formatCurrency(purchase.total_amount)}</p>
           <p className="text-gray-700">
             Pagado: {formatCurrency(amountPaid)}
-            {amountPaid > 0 && ` (${paymentLabels[purchase.payment_method]})`}
+            {amountPaid > 0 && purchase.payment_method !== 'account' && ` (${purchasePaymentLabels[purchase.payment_method]})`}
+            {amountPaid === 0 && ' — a cuenta corriente'}
           </p>
           {balanceChange > 0 && <p className="text-gray-700">Saldo pendiente (a cuenta corriente): {formatCurrency(balanceChange)}</p>}
           {balanceChange < 0 && <p className="text-gray-700">Saldo a favor: {formatCurrency(-balanceChange)}</p>}

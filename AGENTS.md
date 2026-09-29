@@ -155,7 +155,10 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
   `suppliers.account_balance` (+ le debemos, − saldo a nuestro favor).
   Una compra guarda `amount_paid` y `account_balance_change` (= total −
   pagado, lo calcula `register-purchase`); `supplier_payments` registra
-  pagos sueltos. El saldo lo mueve el trigger
+  pagos sueltos. Forma de pago `account` ("Cuenta corriente",
+  `024_purchases_account_payment.sql`): no se paga nada, `amount_paid` = 0
+  y todo el total queda como deuda (`PurchasePaymentMethod`,
+  `purchasePaymentLabels`). El saldo lo mueve el trigger
   `update_supplier_account_balance` al insertar en `purchases` o
   `supplier_payments`, no el cliente. Página `SupplierDetail`
   (`/proveedores/:id`): saldo, movimientos y "Registrar pago".

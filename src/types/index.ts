@@ -65,11 +65,14 @@ export interface PurchaseItem {
   retail_quantity: number; // lo que se sumó al stock, en retail_unit
 }
 
+// 'account' = a cuenta corriente: la compra queda entera como deuda con el proveedor.
+export type PurchasePaymentMethod = PaymentMethod | 'account';
+
 export interface Purchase {
   id: string;
   supplier_id: string;
   purchase_date: string; // 'YYYY-MM-DD'
-  payment_method: PaymentMethod;
+  payment_method: PurchasePaymentMethod;
   items: PurchaseItem[];
   total_amount: number;
   amount_paid: number; // lo que se pagó en el momento

@@ -22,7 +22,7 @@ serve(async (req) => {
   const { supplier_id, purchase_date, payment_method, items, amount_paid, notes } = await req.json() as {
     supplier_id: string
     purchase_date: string
-    payment_method: 'cash' | 'transfer' | 'checks'
+    payment_method: 'cash' | 'transfer' | 'checks' | 'account'
     items: PurchaseItemInput[]
     amount_paid?: number // si no viene, se paga el total
     notes?: string | null
@@ -60,7 +60,8 @@ serve(async (req) => {
     retail_quantity: item.unit === 'bulk' ? item.quantity * (factorById[item.product_id] ?? 1) : item.quantity,
   }))
   const total_amount = storedItems.reduce((sum, item) => sum + item.quantity * item.unit_cost, 0)
-  const paid = amount_paid ?? total_amount
+  // A cuenta corriente: no se paga nada ahora, todo el total queda como deuda.
+  const paid = payment_method === 'account' ? 0 : amount_paid ?? total_amount
   if (paid < 0) return jsonResponse({ error: 'El monto pagado no puede ser negativo' }, 400)
   // Lo que no se pagó queda en la cuenta corriente con el proveedor (lo suma un trigger en la base)
   const account_balance_change = Math.round((total_amount - paid) * 100) / 100

@@ -73,6 +73,21 @@ describe('Proveedores', () => {
     });
   });
 
+  it('muestra arriba el total que se les debe a los proveedores', () => {
+    mockSupabase({
+      profiles: [OWNER_PROFILE],
+      suppliers: [
+        { ...baseSuppliers()[0], account_balance: 80000 },
+        { id: 'sup-2', name: 'Ferrum S.A.', tax_id: null, phone: null, account_balance: 20000, created_at: '2026-01-01T00:00:00.000Z' },
+        { id: 'sup-3', name: 'Arenera Sur', tax_id: null, phone: null, account_balance: -5000, created_at: '2026-01-01T00:00:00.000Z' },
+      ],
+    });
+    cy.loginAs('/proveedores');
+
+    cy.contains('Total que les debés a proveedores').parent().should('contain', '$100.000,00').and('contain', '2 proveedores con deuda');
+    cy.contains('tr', 'Arenera Sur').should('contain', 'saldo a tu favor $5.000,00');
+  });
+
   it('edita un proveedor con click en la fila', () => {
     mockSupabase({ profiles: [OWNER_PROFILE], suppliers: baseSuppliers() });
     cy.intercept('PATCH', '**/rest/v1/suppliers*').as('updateSupplier');

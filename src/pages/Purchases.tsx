@@ -6,10 +6,10 @@ import { PurchasePreview } from '../components/PurchasePreview';
 import { ShareButton } from '../components/ShareButton';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
-import { paymentLabels } from '../lib/payments';
+import { purchasePaymentLabels } from '../lib/payments';
 import { formatCurrency, formatDateOnly, supplierBalanceLabel } from '../lib/format';
 import { bulkToRetail } from '../lib/units';
-import type { PaymentMethod, Product, Purchase, PurchaseItem, Supplier } from '../types';
+import type { Product, Purchase, PurchaseItem, PurchasePaymentMethod, Supplier } from '../types';
 
 // Cantidad y costo como texto mientras se editan, para poder borrar el campo sin que vuelva a 0.
 interface ItemState {
@@ -42,7 +42,7 @@ function NewPurchaseForm({
 }) {
   const [supplierId, setSupplierId] = useState(suppliers[0]?.id ?? '');
   const [purchaseDate, setPurchaseDate] = useState(todayLocal);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<PurchasePaymentMethod>('cash');
   const [items, setItems] = useState<ItemState[]>([]);
   const [notes, setNotes] = useState('');
   // Mientras no se toque, el monto pagado sigue al total de la compra.
@@ -68,7 +68,8 @@ function NewPurchaseForm({
     })
     .filter((item) => item.product_id && item.quantity > 0);
   const total = Math.round(validItems.reduce((sum, item) => sum + item.quantity * item.unit_cost, 0) * 100) / 100;
-  const paid = amountPaid === null ? total : Number(amountPaid) || 0;
+  const onAccount = paymentMethod === 'account';
+  const paid = onAccount ? 0 : amountPaid === null ? total : Number(amountPaid) || 0;
   const balanceChange = Math.round((total - paid) * 100) / 100;
   const currentBalance = Number(suppliers.find((s) => s.id === supplierId)?.account_balance ?? 0);
   const balanceAfter = Math.round((currentBalance + balanceChange) * 100) / 100;
@@ -149,12 +150,13 @@ function NewPurchaseForm({
           <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Forma de pago</label>
           <select
             value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+            onChange={(e) => setPaymentMethod(e.target.value as PurchasePaymentMethod)}
             className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           >
             <option value="cash">Efectivo</option>
             <option value="transfer">Transferencia</option>
             <option value="checks">Valores</option>
+            <option value="account">Cuenta corriente (queda debiendo)</option>
           </select>
         </div>
       </div>
@@ -242,17 +244,23 @@ function NewPurchaseForm({
       </div>
 
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="w-48">
-          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Monto pagado</label>
-          <input
-            type="number"
-            step="any"
-            min={0}
-            value={amountPaid ?? String(total)}
-            onChange={(e) => setAmountPaid(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
-          />
-        </div>
+        {onAccount ? (
+          <p className="max-w-xs text-sm text-gray-500 dark:text-gray-400">
+            No se paga nada ahora: el total de la compra queda en la cuenta corriente del proveedor.
+          </p>
+        ) : (
+          <div className="w-48">
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Monto pagado</label>
+            <input
+              type="number"
+              step="any"
+              min={0}
+              value={amountPaid ?? String(total)}
+              onChange={(e) => setAmountPaid(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
+            />
+          </div>
+        )}
         <div className="space-y-1 text-right text-sm">
           <p className="text-base text-gray-900 dark:text-white font-medium">Total: {formatCurrency(total)}</p>
           {total > 0 && balanceChange > 0 && (
@@ -441,7 +449,9 @@ export function Purchases() {
                     })}
                   </td>
                   <td className="px-5 py-3 text-gray-600 dark:text-gray-300">
-                    {Number(purchase.amount_paid ?? purchase.total_amount) === 0 ? 'A cuenta corriente' : paymentLabels[purchase.payment_method]}
+                    {purchase.payment_method === 'account' || Number(purchase.amount_paid ?? purchase.total_amount) === 0
+                      ? 'Cuenta corriente'
+                      : purchasePaymentLabels[purchase.payment_method]}
                     {Number(purchase.account_balance_change ?? 0) > 0 && Number(purchase.amount_paid) > 0 && (
                       <span className="block text-xs text-red-500">{formatCurrency(purchase.account_balance_change)} a cuenta</span>
                     )}

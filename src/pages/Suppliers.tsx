@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { editableRowProps, stopRowClick } from '../lib/rowClick';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
-import { supplierBalanceLabel } from '../lib/format';
+import { formatCurrency, supplierBalanceLabel } from '../lib/format';
 import type { Supplier } from '../types';
 
 function SupplierForm({ supplier, onSaved, onCancel }: { supplier?: Supplier; onSaved: () => void; onCancel: () => void }) {
@@ -117,6 +117,10 @@ export function Suppliers() {
     setEditingSupplier(null);
   }
 
+  // Lo que se les debe a todos los proveedores (solo saldos positivos; los a favor no se restan).
+  const suppliersOwed = suppliers.filter((supplier) => Number(supplier.account_balance ?? 0) > 0);
+  const totalOwed = suppliersOwed.reduce((sum, supplier) => sum + Number(supplier.account_balance), 0);
+
   const filteredSuppliers = suppliers.filter((supplier) => {
     const term = search.trim().toLowerCase();
     if (!term) return true;
@@ -142,6 +146,18 @@ export function Suppliers() {
           Nuevo proveedor
         </button>
       </div>
+
+      {!loading && suppliers.length > 0 && (
+        <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-5 py-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">Total que les debés a proveedores</p>
+          <p className={`mt-1 text-2xl font-semibold ${totalOwed > 0 ? 'text-red-500' : 'text-green-500'}`}>{formatCurrency(totalOwed)}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {suppliersOwed.length === 0
+              ? 'No le debés nada a ningún proveedor.'
+              : `${suppliersOwed.length} ${suppliersOwed.length === 1 ? 'proveedor' : 'proveedores'} con deuda`}
+          </p>
+        </div>
+      )}
 
       <div className="relative max-w-sm">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />

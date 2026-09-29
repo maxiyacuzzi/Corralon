@@ -191,7 +191,7 @@ export function SupplierDetail() {
       key: `purchase-${purchase.id}`,
       date: purchase.purchase_date,
       created_at: purchase.created_at,
-      concept: 'Compra',
+      concept: Number(purchase.amount_paid ?? purchase.total_amount) === 0 ? 'Compra a cuenta corriente' : 'Compra',
       detail:
         `Total ${formatCurrency(purchase.total_amount)} — pagado ${formatCurrency(purchase.amount_paid ?? purchase.total_amount)}` +
         (purchase.notes ? ` — ${purchase.notes}` : ''),

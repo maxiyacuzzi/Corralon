@@ -169,4 +169,37 @@ describe('Compras', () => {
 
     cy.get('.print-area').contains('h2', 'Comprobante de compra').should('be.visible');
   });
+
+  it('permite registrar la compra entera a cuenta corriente del proveedor', () => {
+    mockSupabase({
+      profiles: [OWNER_PROFILE],
+      suppliers: [{ ...baseSuppliers()[0], account_balance: 10000 }],
+      products: baseProducts(),
+      purchases: [],
+    });
+    mockFunction('register-purchase', { statusCode: 200, body: { data: { ok: true } } });
+    cy.loginAs('/compras');
+
+    cy.contains('button', 'Nueva compra').click();
+    cy.get('form').within(() => {
+      cy.contains('button', '+ Agregar producto').click();
+      cy.get('input[placeholder="Cant."]').clear().type('10');
+      cy.get('input[aria-label="Costo unitario"]').clear().type('2500');
+      cy.contains('label', 'Forma de pago').next('select').select('Cuenta corriente (queda debiendo)');
+      cy.contains('label', 'Monto pagado').should('not.exist');
+      cy.contains('el total de la compra queda en la cuenta corriente del proveedor').should('be.visible');
+      cy.contains('Quedás debiendo $25.000,00 al proveedor').should('be.visible');
+      cy.contains('Cuenta corriente después de la compra: le debés $35.000,00').should('be.visible');
+      cy.contains('button', 'Registrar compra').click();
+    });
+
+    cy.wait('@fn_register-purchase').its('request.body').should('deep.include', { payment_method: 'account', amount_paid: 0 });
+  });
+
+  it('en el listado una compra a cuenta corriente dice Cuenta corriente', () => {
+    seedPurchases([{ ...PURCHASE, payment_method: 'account', amount_paid: 0, account_balance_change: 50000 }]);
+    cy.loginAs('/compras');
+
+    cy.contains('tr', 'Factura A 0001-00001234').should('contain', 'Cuenta corriente');
+  });
 });
