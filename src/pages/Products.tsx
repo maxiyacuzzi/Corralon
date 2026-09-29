@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Pencil, Plus, Search, X } from 'lucide-react';
+import { Plus, Search, X } from 'lucide-react';
+import { editableRowProps } from '../lib/rowClick';
 import { supabase } from '../lib/supabase';
 import { ProductForm } from '../components/ProductForm';
 import { formatStock, stockStatus } from '../lib/units';
@@ -143,7 +144,6 @@ export function Products() {
                 <th className="px-5 py-3">Acopiado</th>
                 <th className="px-5 py-3">Precio</th>
                 <th className="px-5 py-3">Estado</th>
-                <th className="px-5 py-3"></th>
               </tr>
             </thead>
             <tbody>
@@ -151,8 +151,9 @@ export function Products() {
                 const status = stockStatus(product);
                 const stockpiled = stockpiledByProductId[product.id] ?? 0;
                 const shortOnStock = stockpiled > product.current_stock;
+                const rowProps = editableRowProps(() => setEditingProduct(product));
                 return (
-                  <tr key={product.id} className="border-b border-gray-200 dark:border-gray-800 last:border-0">
+                  <tr key={product.id} {...rowProps} className={`border-b border-gray-200 dark:border-gray-800 last:border-0 ${rowProps.className}`}>
                     <td className="px-5 py-3 text-gray-900 dark:text-white font-medium">{product.name}</td>
                     <td className="px-5 py-3 text-gray-600 dark:text-gray-300">
                       {product.category_id && categoriesById[product.category_id]
@@ -172,15 +173,6 @@ export function Products() {
                       <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[status]}`}>
                         {statusLabels[status]}
                       </span>
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      <button
-                        onClick={() => setEditingProduct(product)}
-                        className="flex items-center gap-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600 ml-auto"
-                      >
-                        <Pencil size={14} />
-                        Editar
-                      </button>
                     </td>
                   </tr>
                 );

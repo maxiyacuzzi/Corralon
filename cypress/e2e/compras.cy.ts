@@ -62,6 +62,31 @@ describe('Compras', () => {
     cy.contains('h2', 'Nueva compra').should('not.exist');
   });
 
+  it('el monto pagado arranca con el total y lo que falta queda a cuenta del proveedor', () => {
+    mockSupabase({
+      profiles: [OWNER_PROFILE],
+      suppliers: [{ ...baseSuppliers()[0], account_balance: 10000 }],
+      products: baseProducts(),
+      purchases: [],
+    });
+    mockFunction('register-purchase', { statusCode: 200, body: { data: { ok: true } } });
+    cy.loginAs('/compras');
+
+    cy.contains('button', 'Nueva compra').click();
+    cy.get('form').within(() => {
+      cy.contains('Cuenta corriente: le debés $10.000,00').should('be.visible');
+      cy.contains('button', '+ Agregar producto').click();
+      cy.get('input[placeholder="Cant."]').clear().type('10');
+      cy.get('input[aria-label="Costo unitario"]').clear().type('2500');
+      cy.contains('label', 'Monto pagado').next('input').should('have.value', '25000').clear().type('15000');
+      cy.contains('Quedás debiendo $10.000,00 al proveedor').should('be.visible');
+      cy.contains('Cuenta corriente después de la compra: le debés $20.000,00').should('be.visible');
+      cy.contains('button', 'Registrar compra').click();
+    });
+
+    cy.wait('@fn_register-purchase').its('request.body.amount_paid').should('equal', 15000);
+  });
+
   it('un producto con una sola unidad se envía en unidad minorista', () => {
     seedPurchases();
     mockFunction('register-purchase', { statusCode: 200, body: { data: { ok: true } } });
@@ -101,5 +126,47 @@ describe('Compras', () => {
 
     cy.contains('La compra necesita al menos un producto con cantidad').should('be.visible');
     cy.contains('h2', 'Nueva compra').should('exist');
+  });
+
+  it('abre el comprobante de una compra para imprimir o compartir', () => {
+    seedPurchases([{ ...PURCHASE, amount_paid: 30000, account_balance_change: 20000 }]);
+    cy.loginAs('/compras');
+
+    cy.contains('tr', 'Factura A 0001-00001234').within(() => {
+      cy.contains('button', 'Ver / Imprimir').click();
+    });
+
+    cy.get('.print-area').within(() => {
+      cy.contains('h2', 'Comprobante de compra');
+      cy.contains('10/1/2026');
+      cy.contains('Loma Negra S.A.');
+      cy.contains('CUIT: 30-12345678-9');
+      cy.contains('tr', 'Cemento Loma Negra').should('contain', '20 bolsa').and('contain', '$2.500,00').and('contain', '$50.000,00');
+      cy.contains('Total: $50.000,00');
+      cy.contains('Pagado: $30.000,00 (Transferencia)');
+      cy.contains('Saldo pendiente (a cuenta corriente): $20.000,00');
+      cy.contains('Factura A 0001-00001234');
+    });
+    cy.contains('button', 'Imprimir').should('be.visible');
+
+    cy.contains('button', '← Volver al listado').click();
+    cy.contains('h1', 'Compras').should('be.visible');
+  });
+
+  it('después de registrar una compra abre su comprobante', () => {
+    seedPurchases();
+    mockFunction('register-purchase', {
+      statusCode: 200,
+      body: { success: true, purchase: { ...PURCHASE, notes: null, amount_paid: 50000, account_balance_change: 0 } },
+    });
+    cy.loginAs('/compras');
+
+    cy.contains('button', 'Nueva compra').click();
+    cy.get('form').within(() => {
+      cy.contains('button', '+ Agregar producto').click();
+      cy.contains('button', 'Registrar compra').click();
+    });
+
+    cy.get('.print-area').contains('h2', 'Comprobante de compra').should('be.visible');
   });
 });

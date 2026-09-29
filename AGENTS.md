@@ -150,8 +150,15 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
   Cada ítem guarda cantidad y costo tal como se cargaron (`unit` =
   `bulk`/`retail`) y `retail_quantity`, lo que se sumó al stock; la
   conversión con `conversion_factor` la hace la función, no el cliente.
-  No hay cuenta corriente con proveedores ni impacto en Caja (la Caja
-  solo mira ingresos).
+  Las compras no impactan en Caja (la Caja solo mira ingresos).
+- Cuenta corriente con proveedores (`020_supplier_accounts.sql`):
+  `suppliers.account_balance` (+ le debemos, − saldo a nuestro favor).
+  Una compra guarda `amount_paid` y `account_balance_change` (= total −
+  pagado, lo calcula `register-purchase`); `supplier_payments` registra
+  pagos sueltos. El saldo lo mueve el trigger
+  `update_supplier_account_balance` al insertar en `purchases` o
+  `supplier_payments`, no el cliente. Página `SupplierDetail`
+  (`/proveedores/:id`): saldo, movimientos y "Registrar pago".
 - Editar un producto (`ProductForm` con `product` seteado) nunca toca
   `current_stock`; los cambios de stock siempre pasan por el módulo Stock
   (`register-stock-movement`) para mantener el auditing en
@@ -190,18 +197,32 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
   datos de cheque (queda con `sale_id` seteado), o se cargan
   manualmente desde la página Valores (`sale_id` null). Estados:
   `in_wallet` → `deposited` → `cleared`, o `rejected` / `delivered` en
-  cualquier punto antes de `cleared`.
+  cualquier punto antes de `cleared`; un cheque `delivered` (entregado a
+  un proveedor, `delivered_supplier_id` obligatorio) puede pasar a
+  `cleared`, `returned` (devuelto) o `rejected`.
+  Entrega (`021_check_delivery.sql`): si `delivered_as_payment`, el
+  trigger `checks_before_status_change` crea un `supplier_payments`
+  (method `checks`) que descuenta la deuda con ese proveedor y lo enlaza
+  en `checks.supplier_payment_id`. Al pasar a `rejected` o `returned`: el
+  monto vuelve a la cuenta corriente del cliente, y si había un pago a
+  proveedor se anula (`supplier_payments.voided_at`) y la deuda con el
+  proveedor vuelve. Los pagos anulados se muestran pero no restan.
   Un cheque cargado suelto (`sale_id` null) es un **cobro a cuenta**: el
   trigger `checks_account_balance` le descuenta el monto a
   `clients.account_balance`, y la Caja lo suma como ingreso en Valores
   (los cheques de venta ya están en `sale_payments`, no se cuentan dos
-  veces). Si cualquier cheque pasa a `rejected`, el mismo trigger le
-  vuelve a sumar el monto a la cuenta corriente.
+  veces). Si cualquier cheque pasa a `rejected` o `returned`, el mismo
+  trigger le vuelve a sumar el monto a la cuenta corriente.
+  Editar un cheque (Valores → "Editar"): banco, número, titular, fechas,
+  etc. siempre; `amount`/`client_id` solo en un cobro a cuenta en
+  cartera (`sale_id` null, `in_wallet`) — el trigger
+  `checks_amount_client_change` (`022_check_edit_balance.sql`) revierte
+  el monto viejo al cliente viejo y descuenta el nuevo al cliente nuevo.
   Ojo: `checks.issue_date` es la fecha en que se **recibió** el cheque (UI
   "Recibido"), no la de emisión — esa es `emission_date`. Las columnas
   `date` se muestran con `formatDateOnly` (`src/lib/format.ts`), no con
   `new Date(...)`, que las corre un día en Argentina (UTC-3).
-- `DeliveryNotePreview`, `QuotePreview` y `SalePreview` son la excepción
+- `DeliveryNotePreview`, `QuotePreview`, `SalePreview` y `PurchasePreview` son la excepción
   al tema oscuro del resto de la app: siempre fondo blanco/texto oscuro
   (look "papel"), a propósito — son la misma vista que se imprime y que
   se exporta a PDF para compartir, así que tienen que verse igual en
@@ -214,6 +235,10 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
   (rules-of-hooks, only-export-components). No agregar config de ESLint.
 - TypeScript estricto según `tsconfig.app.json`; evitar `any`.
 - Componentes funcionales, sin clases.
+- Tablas/listas editables: no hay botón "Editar"; se edita haciendo click
+  en la fila (`editableRowProps` de `src/lib/rowClick.ts`, que también
+  responde a Enter y sube hasta el formulario). Las celdas con botones o
+  links propios llevan `onClick={stopRowClick}` para no abrir la edición.
 - Los textos de la UI están en español (nombres de tablas y campos en
   inglés/snake_case, UI en español) — mantené esa convención en código nuevo.
 

@@ -59,11 +59,10 @@ describe('Productos', () => {
     seedProducts();
     cy.loginAs('/productos');
 
-    cy.contains('tr', 'Cemento Loma Negra').within(() => {
-      cy.contains('button', 'Editar').click();
-    });
+    cy.contains('tr', 'Cemento Loma Negra').click();
 
     cy.contains('h2', 'Editar producto').should('exist');
+    cy.contains('button', 'Editar').should('not.exist');
     cy.contains('label', 'Precio').next('input').clear().type('4200');
     cy.contains('button', 'Guardar cambios').click();
 
@@ -103,9 +102,7 @@ describe('Productos', () => {
       'updateProductFails'
     );
 
-    cy.contains('tr', 'Cemento Loma Negra').within(() => {
-      cy.contains('button', 'Editar').click();
-    });
+    cy.contains('tr', 'Cemento Loma Negra').click();
     cy.contains('label', 'Precio').next('input').clear().type('4200');
     cy.contains('button', 'Guardar cambios').click();
 
