@@ -2,6 +2,17 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Comprobantes (vistas *Preview): se ven oscuros en pantalla con la app en
+   modo oscuro, pero al imprimir (@media print) y al exportar a PDF (lib/pdf.ts
+   les pone .pdf-export mientras captura) salen siempre como papel blanco. */
+@custom-variant paper-dark {
+  @media screen {
+    &:where(.dark *):not(:where(.pdf-export, .pdf-export *)) {
+      @slot;
+    }
+  }
+}
+
 body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;

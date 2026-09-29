@@ -1,14 +1,17 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { Plus, Search, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { editableRowProps, stopRowClick } from '../lib/rowClick';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
+import { formatCurrency, supplierBalanceLabel } from '../lib/format';
 import type { Supplier } from '../types';
 
-function NewSupplierForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: () => void }) {
-  const [name, setName] = useState('');
-  const [taxId, setTaxId] = useState('');
-  const [phone, setPhone] = useState('');
+function SupplierForm({ supplier, onSaved, onCancel }: { supplier?: Supplier; onSaved: () => void; onCancel: () => void }) {
+  const [name, setName] = useState(supplier?.name ?? '');
+  const [taxId, setTaxId] = useState(supplier?.tax_id ?? '');
+  const [phone, setPhone] = useState(supplier?.phone ?? '');
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string>();
 
@@ -17,11 +20,11 @@ function NewSupplierForm({ onSaved, onCancel }: { onSaved: () => void; onCancel:
     setStatus('saving');
     setErrorMessage(undefined);
 
-    const { error } = await supabase.from('suppliers').insert({
-      name,
-      tax_id: taxId || null,
-      phone: phone || null,
-    });
+    const fields = { name, tax_id: taxId || null, phone: phone || null };
+    // Editar nunca toca account_balance: la deuda solo la mueven compras, pagos y cheques entregados.
+    const { error } = supplier
+      ? await supabase.from('suppliers').update(fields).eq('id', supplier.id)
+      : await supabase.from('suppliers').insert(fields);
 
     if (error) {
       setStatus('error');
@@ -78,7 +81,7 @@ function NewSupplierForm({ onSaved, onCancel }: { onSaved: () => void; onCancel:
             disabled={status === 'saving'}
             className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500 disabled:opacity-50"
           >
-            Guardar proveedor
+            {supplier ? 'Guardar cambios' : 'Guardar proveedor'}
           </button>
         </div>
       </div>
@@ -90,6 +93,7 @@ export function Suppliers() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -104,9 +108,18 @@ export function Suppliers() {
   }
 
   function handleSaved() {
-    setShowForm(false);
+    closeForm();
     loadSuppliers();
   }
+
+  function closeForm() {
+    setShowForm(false);
+    setEditingSupplier(null);
+  }
+
+  // Lo que se les debe a todos los proveedores (solo saldos positivos; los a favor no se restan).
+  const suppliersOwed = suppliers.filter((supplier) => Number(supplier.account_balance ?? 0) > 0);
+  const totalOwed = suppliersOwed.reduce((sum, supplier) => sum + Number(supplier.account_balance), 0);
 
   const filteredSuppliers = suppliers.filter((supplier) => {
     const term = search.trim().toLowerCase();
@@ -123,13 +136,28 @@ export function Suppliers() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Proveedores</h1>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            setEditingSupplier(null);
+            setShowForm(true);
+          }}
           className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500"
         >
           <Plus size={16} />
           Nuevo proveedor
         </button>
       </div>
+
+      {!loading && suppliers.length > 0 && (
+        <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-5 py-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">Total que les debés a proveedores</p>
+          <p className={`mt-1 text-2xl font-semibold ${totalOwed > 0 ? 'text-red-500' : 'text-green-500'}`}>{formatCurrency(totalOwed)}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {suppliersOwed.length === 0
+              ? 'No le debés nada a ningún proveedor.'
+              : `${suppliersOwed.length} ${suppliersOwed.length === 1 ? 'proveedor' : 'proveedores'} con deuda`}
+          </p>
+        </div>
+      )}
 
       <div className="relative max-w-sm">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
@@ -141,15 +169,15 @@ export function Suppliers() {
         />
       </div>
 
-      {showForm && (
+      {(showForm || editingSupplier) && (
         <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium text-gray-900 dark:text-white">Nuevo proveedor</h2>
-            <button onClick={() => setShowForm(false)} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white">{editingSupplier ? 'Editar proveedor' : 'Nuevo proveedor'}</h2>
+            <button onClick={closeForm} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
               <X size={18} />
             </button>
           </div>
-          <NewSupplierForm onSaved={handleSaved} onCancel={() => setShowForm(false)} />
+          <SupplierForm key={editingSupplier?.id ?? 'new'} supplier={editingSupplier ?? undefined} onSaved={handleSaved} onCancel={closeForm} />
         </div>
       )}
 
@@ -167,16 +195,35 @@ export function Suppliers() {
                 <th className="px-5 py-3">Nombre</th>
                 <th className="px-5 py-3">CUIT</th>
                 <th className="px-5 py-3">Teléfono</th>
+                <th className="px-5 py-3">Cuenta corriente</th>
+                <th className="px-5 py-3"></th>
               </tr>
             </thead>
             <tbody>
-              {filteredSuppliers.map((supplier) => (
-                <tr key={supplier.id} className="border-b border-gray-200 dark:border-gray-800 last:border-0">
-                  <td className="px-5 py-3 text-gray-900 dark:text-white font-medium">{supplier.name}</td>
-                  <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{supplier.tax_id ?? '—'}</td>
-                  <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{supplier.phone ?? '—'}</td>
-                </tr>
-              ))}
+              {filteredSuppliers.map((supplier) => {
+                const rowProps = editableRowProps(() => {
+                  setShowForm(false);
+                  setEditingSupplier(supplier);
+                });
+                return (
+                  <tr key={supplier.id} {...rowProps} className={`border-b border-gray-200 dark:border-gray-800 last:border-0 ${rowProps.className}`}>
+                    <td className="px-5 py-3 text-gray-900 dark:text-white font-medium">{supplier.name}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{supplier.tax_id ?? '—'}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{supplier.phone ?? '—'}</td>
+                    <td className={`px-5 py-3 font-medium ${Number(supplier.account_balance ?? 0) > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                      {supplierBalanceLabel(Number(supplier.account_balance ?? 0))}
+                    </td>
+                    <td className="px-5 py-3 text-right cursor-default" onClick={stopRowClick}>
+                      <Link
+                        to={`/proveedores/${supplier.id}`}
+                        className="rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600"
+                      >
+                        Ver cuenta
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

@@ -1,12 +1,16 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Plus, Search, Trash2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { PrintButton } from '../components/PrintButton';
+import { PurchasePreview } from '../components/PurchasePreview';
+import { ShareButton } from '../components/ShareButton';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
-import { paymentLabels } from '../lib/payments';
-import { formatCurrency, formatDateOnly } from '../lib/format';
+import { purchasePaymentLabels } from '../lib/payments';
+import { formatCurrency, formatDateOnly, supplierBalanceLabel } from '../lib/format';
 import { bulkToRetail } from '../lib/units';
-import type { PaymentMethod, Product, Purchase, PurchaseItem, Supplier } from '../types';
+import type { Product, Purchase, PurchaseItem, PurchasePaymentMethod, Supplier } from '../types';
+import { functionErrorMessage } from '../lib/functions';
 
 // Cantidad y costo como texto mientras se editan, para poder borrar el campo sin que vuelva a 0.
 interface ItemState {
@@ -34,14 +38,16 @@ function NewPurchaseForm({
 }: {
   suppliers: Supplier[];
   products: Product[];
-  onSaved: () => void;
+  onSaved: (purchase: Purchase | null) => void;
   onCancel: () => void;
 }) {
   const [supplierId, setSupplierId] = useState(suppliers[0]?.id ?? '');
   const [purchaseDate, setPurchaseDate] = useState(todayLocal);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<PurchasePaymentMethod>('cash');
   const [items, setItems] = useState<ItemState[]>([]);
   const [notes, setNotes] = useState('');
+  // Mientras no se toque, el monto pagado sigue al total de la compra.
+  const [amountPaid, setAmountPaid] = useState<string | null>(null);
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string>();
 
@@ -62,7 +68,12 @@ function NewPurchaseForm({
       };
     })
     .filter((item) => item.product_id && item.quantity > 0);
-  const total = validItems.reduce((sum, item) => sum + item.quantity * item.unit_cost, 0);
+  const total = Math.round(validItems.reduce((sum, item) => sum + item.quantity * item.unit_cost, 0) * 100) / 100;
+  const onAccount = paymentMethod === 'account';
+  const paid = onAccount ? 0 : amountPaid === null ? total : Number(amountPaid) || 0;
+  const balanceChange = Math.round((total - paid) * 100) / 100;
+  const currentBalance = Number(suppliers.find((s) => s.id === supplierId)?.account_balance ?? 0);
+  const balanceAfter = Math.round((currentBalance + balanceChange) * 100) / 100;
 
   function updateItem(index: number, patch: Partial<ItemState>) {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
@@ -87,19 +98,21 @@ function NewPurchaseForm({
         supplier_id: supplierId,
         purchase_date: purchaseDate,
         payment_method: paymentMethod,
+        amount_paid: paid,
         items: validItems,
         notes: notes || null,
       },
     });
 
-    if (error || (data as { error?: string } | null)?.error) {
+    const failure = await functionErrorMessage(data, error);
+    if (failure) {
       setStatus('error');
-      setErrorMessage((data as { error?: string } | null)?.error ?? 'Error de conexión. Intentá nuevamente.');
+      setErrorMessage(failure);
       return;
     }
 
     setStatus('saved');
-    onSaved();
+    onSaved((data as { purchase?: Purchase } | null)?.purchase ?? null);
   }
 
   return (
@@ -118,6 +131,12 @@ function NewPurchaseForm({
               </option>
             ))}
           </select>
+          {supplierId && (
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Cuenta corriente:{' '}
+              <span className={`font-medium ${currentBalance > 0 ? 'text-red-500' : 'text-green-500'}`}>{supplierBalanceLabel(currentBalance)}</span>
+            </p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Fecha de compra</label>
@@ -133,12 +152,13 @@ function NewPurchaseForm({
           <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Forma de pago</label>
           <select
             value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+            onChange={(e) => setPaymentMethod(e.target.value as PurchasePaymentMethod)}
             className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           >
             <option value="cash">Efectivo</option>
             <option value="transfer">Transferencia</option>
             <option value="checks">Valores</option>
+            <option value="account">Cuenta corriente (queda debiendo)</option>
           </select>
         </div>
       </div>
@@ -225,7 +245,40 @@ function NewPurchaseForm({
         />
       </div>
 
-      <p className="text-right text-gray-900 dark:text-white font-medium">Total: {formatCurrency(total)}</p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        {onAccount ? (
+          <p className="max-w-xs text-sm text-gray-500 dark:text-gray-400">
+            No se paga nada ahora: el total de la compra queda en la cuenta corriente del proveedor.
+          </p>
+        ) : (
+          <div className="w-48">
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Monto pagado</label>
+            <input
+              type="number"
+              step="any"
+              min={0}
+              value={amountPaid ?? String(total)}
+              onChange={(e) => setAmountPaid(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
+            />
+          </div>
+        )}
+        <div className="space-y-1 text-right text-sm">
+          <p className="text-base text-gray-900 dark:text-white font-medium">Total: {formatCurrency(total)}</p>
+          {total > 0 && balanceChange > 0 && (
+            <p className="text-red-500 font-medium">Quedás debiendo {formatCurrency(balanceChange)} al proveedor</p>
+          )}
+          {total > 0 && balanceChange < 0 && (
+            <p className="text-green-500 font-medium">Pagaste de más: te quedan {formatCurrency(-balanceChange)} a favor</p>
+          )}
+          {total > 0 && balanceChange !== 0 && (
+            <p className="text-gray-500 dark:text-gray-400">
+              Cuenta corriente después de la compra:{' '}
+              <span className={`font-medium ${balanceAfter > 0 ? 'text-red-500' : 'text-green-500'}`}>{supplierBalanceLabel(balanceAfter)}</span>
+            </p>
+          )}
+        </div>
+      </div>
 
       <div className="flex items-center justify-between pt-2">
         <SaveStatusIndicator status={status} errorMessage={errorMessage} />
@@ -257,6 +310,8 @@ export function Purchases() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
+  const [previewPurchase, setPreviewPurchase] = useState<Purchase | null>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadData();
@@ -275,8 +330,10 @@ export function Purchases() {
     setLoading(false);
   }
 
-  function handleSaved() {
+  function handleSaved(purchase: Purchase | null) {
     setShowForm(false);
+    // Recién registrada: se abre el comprobante para imprimirlo.
+    if (purchase) setPreviewPurchase(purchase);
     loadData();
   }
 
@@ -290,6 +347,30 @@ export function Purchases() {
     const productNames = purchase.items.map((item) => productsById[item.product_id]?.name ?? '');
     return supplierName.toLowerCase().includes(term) || productNames.some((name) => name.toLowerCase().includes(term));
   });
+
+  if (previewPurchase) {
+    const fileName = `compra-${previewPurchase.purchase_date}-${previewPurchase.id.slice(0, 8)}.pdf`;
+    return (
+      <div className="space-y-3">
+        <div className="print:hidden flex items-center justify-between">
+          <button onClick={() => setPreviewPurchase(null)} className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+            ← Volver al listado
+          </button>
+          <div className="flex gap-3">
+            <PrintButton />
+            <ShareButton targetRef={previewRef} fileName={fileName} shareTitle="Comprobante de compra" />
+          </div>
+        </div>
+        <div ref={previewRef} className="print-area">
+          <PurchasePreview
+            purchase={previewPurchase}
+            supplier={suppliersById[previewPurchase.supplier_id]}
+            productsById={productsById}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -347,6 +428,7 @@ export function Purchases() {
                 <th className="px-5 py-3">Productos</th>
                 <th className="px-5 py-3">Forma de pago</th>
                 <th className="px-5 py-3">Total</th>
+                <th className="px-5 py-3"></th>
               </tr>
             </thead>
             <tbody>
@@ -368,8 +450,26 @@ export function Purchases() {
                       );
                     })}
                   </td>
-                  <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{paymentLabels[purchase.payment_method]}</td>
+                  <td className="px-5 py-3 text-gray-600 dark:text-gray-300">
+                    {purchase.payment_method === 'account' || Number(purchase.amount_paid ?? purchase.total_amount) === 0
+                      ? 'Cuenta corriente'
+                      : purchasePaymentLabels[purchase.payment_method]}
+                    {Number(purchase.account_balance_change ?? 0) > 0 && Number(purchase.amount_paid) > 0 && (
+                      <span className="block text-xs text-red-500">{formatCurrency(purchase.account_balance_change)} a cuenta</span>
+                    )}
+                    {Number(purchase.account_balance_change ?? 0) < 0 && (
+                      <span className="block text-xs text-green-500">{formatCurrency(-purchase.account_balance_change)} a favor</span>
+                    )}
+                  </td>
                   <td className="px-5 py-3 text-gray-900 dark:text-white font-medium">{formatCurrency(purchase.total_amount)}</td>
+                  <td className="px-5 py-3 text-right">
+                    <button
+                      onClick={() => setPreviewPurchase(purchase)}
+                      className="rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600"
+                    >
+                      Ver / Imprimir
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -40,6 +40,20 @@ export interface Supplier {
   name: string;
   tax_id: string | null;
   phone: string | null;
+  account_balance: number; // + le debemos al proveedor, - saldo a nuestro favor
+  created_at: string;
+}
+
+export interface SupplierPayment {
+  id: string;
+  supplier_id: string;
+  payment_date: string; // 'YYYY-MM-DD'
+  method: PaymentMethod;
+  amount: number;
+  notes: string | null;
+  voided_at: string | null; // anulado: el cheque con que se pagó fue rechazado o devuelto
+  void_reason: string | null;
+  created_by: string | null;
   created_at: string;
 }
 
@@ -51,13 +65,18 @@ export interface PurchaseItem {
   retail_quantity: number; // lo que se sumó al stock, en retail_unit
 }
 
+// 'account' = a cuenta corriente: la compra queda entera como deuda con el proveedor.
+export type PurchasePaymentMethod = PaymentMethod | 'account';
+
 export interface Purchase {
   id: string;
   supplier_id: string;
   purchase_date: string; // 'YYYY-MM-DD'
-  payment_method: PaymentMethod;
+  payment_method: PurchasePaymentMethod;
   items: PurchaseItem[];
   total_amount: number;
+  amount_paid: number; // lo que se pagó en el momento
+  account_balance_change: number; // total - pagado: lo que sumó a la deuda con el proveedor
   notes: string | null;
   created_by: string | null;
   created_at: string;
@@ -189,7 +208,7 @@ export interface Stats {
   sales_this_month: number;
 }
 
-export type CheckStatus = 'in_wallet' | 'deposited' | 'cleared' | 'rejected' | 'delivered';
+export type CheckStatus = 'in_wallet' | 'deposited' | 'cleared' | 'rejected' | 'delivered' | 'returned';
 
 export interface Check {
   id: string;
@@ -205,6 +224,9 @@ export interface Check {
   due_date: string; // cuándo se cobra
   is_deferred: boolean; // cheque de pago diferido vs. cheque común
   status: CheckStatus;
+  delivered_supplier_id: string | null; // a qué proveedor se entregó (status 'delivered' en adelante)
+  delivered_as_payment: boolean; // si al entregarlo se registró como pago al proveedor
+  supplier_payment_id: string | null; // ese pago (se anula si el cheque es rechazado o devuelto)
   notes: string | null;
   created_at: string;
 }

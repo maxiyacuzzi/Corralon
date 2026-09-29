@@ -157,8 +157,18 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
   Cada ítem guarda cantidad y costo tal como se cargaron (`unit` =
   `bulk`/`retail`) y `retail_quantity`, lo que se sumó al stock; la
   conversión con `conversion_factor` la hace la función, no el cliente.
-  No hay cuenta corriente con proveedores ni impacto en Caja (la Caja
-  solo mira ingresos).
+  Las compras no impactan en Caja (la Caja solo mira ingresos).
+- Cuenta corriente con proveedores (`020_supplier_accounts.sql`):
+  `suppliers.account_balance` (+ le debemos, − saldo a nuestro favor).
+  Una compra guarda `amount_paid` y `account_balance_change` (= total −
+  pagado, lo calcula `register-purchase`); `supplier_payments` registra
+  pagos sueltos. Forma de pago `account` ("Cuenta corriente",
+  `024_purchases_account_payment.sql`): no se paga nada, `amount_paid` = 0
+  y todo el total queda como deuda (`PurchasePaymentMethod`,
+  `purchasePaymentLabels`). El saldo lo mueve el trigger
+  `update_supplier_account_balance` al insertar en `purchases` o
+  `supplier_payments`, no el cliente. Página `SupplierDetail`
+  (`/proveedores/:id`): saldo, movimientos y "Registrar pago".
 - Editar un producto (`ProductForm` con `product` seteado) nunca toca
   `current_stock`; los cambios de stock siempre pasan por el módulo Stock
   (`register-stock-movement`) para mantener el auditing en
@@ -197,23 +207,39 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
   datos de cheque (queda con `sale_id` seteado), o se cargan
   manualmente desde la página Valores (`sale_id` null). Estados:
   `in_wallet` → `deposited` → `cleared`, o `rejected` / `delivered` en
-  cualquier punto antes de `cleared`.
+  cualquier punto antes de `cleared`; un cheque `delivered` (entregado a
+  un proveedor, `delivered_supplier_id` obligatorio) puede pasar a
+  `cleared`, `returned` (devuelto) o `rejected`.
+  Entrega (`021_check_delivery.sql`): si `delivered_as_payment`, el
+  trigger `checks_before_status_change` crea un `supplier_payments`
+  (method `checks`) que descuenta la deuda con ese proveedor y lo enlaza
+  en `checks.supplier_payment_id`. Al pasar a `rejected` o `returned`: el
+  monto vuelve a la cuenta corriente del cliente, y si había un pago a
+  proveedor se anula (`supplier_payments.voided_at`) y la deuda con el
+  proveedor vuelve. Los pagos anulados se muestran pero no restan.
   Un cheque cargado suelto (`sale_id` null) es un **cobro a cuenta**: el
   trigger `checks_account_balance` le descuenta el monto a
   `clients.account_balance`, y la Caja lo suma como ingreso en Valores
   (los cheques de venta ya están en `sale_payments`, no se cuentan dos
-  veces). Si cualquier cheque pasa a `rejected`, el mismo trigger le
-  vuelve a sumar el monto a la cuenta corriente.
+  veces). Si cualquier cheque pasa a `rejected` o `returned`, el mismo
+  trigger le vuelve a sumar el monto a la cuenta corriente.
+  Editar un cheque (Valores → "Editar"): banco, número, titular, fechas,
+  etc. siempre; `amount`/`client_id` solo en un cobro a cuenta en
+  cartera (`sale_id` null, `in_wallet`) — el trigger
+  `checks_amount_client_change` (`022_check_edit_balance.sql`) revierte
+  el monto viejo al cliente viejo y descuenta el nuevo al cliente nuevo.
   Ojo: `checks.issue_date` es la fecha en que se **recibió** el cheque (UI
   "Recibido"), no la de emisión — esa es `emission_date`. Las columnas
   `date` se muestran con `formatDateOnly` (`src/lib/format.ts`), no con
   `new Date(...)`, que las corre un día en Argentina (UTC-3).
-- `DeliveryNotePreview`, `QuotePreview` y `SalePreview` son la excepción
-  al tema oscuro del resto de la app: siempre fondo blanco/texto oscuro
-  (look "papel"), a propósito — son la misma vista que se imprime y que
-  se exporta a PDF para compartir, así que tienen que verse igual en
-  pantalla, al imprimir y en el PDF compartido. No las vuelvas a poner
-  en modo oscuro condicionado a `print:`.
+- `DeliveryNotePreview`, `QuotePreview`, `SalePreview` y `PurchasePreview`
+  (comprobantes) son "papel": al imprimir y en el PDF compartido salen
+  **siempre** en blanco. En pantalla siguen el tema de la app vía la
+  variante `paper-dark:` (definida en `src/index.css`): solo aplica con
+  `.dark`, en `@media screen` y fuera de `.pdf-export`, clase que
+  `elementToPdfFile` (`src/lib/pdf.ts`) le pone al nodo mientras lo
+  captura. Para colores oscuros en un comprobante usá `paper-dark:`, nunca
+  `dark:` (que también aplicaría al imprimir y al PDF).
 
 ## Convenciones de código
 

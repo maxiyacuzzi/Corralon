@@ -10,6 +10,7 @@ import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
 import { paymentLabels } from '../lib/payments';
 import { formatCurrency } from '../lib/format';
 import type { Client, DeliveryNote, PaymentMethod, Product, Profile, Sale, SaleDeliveryNote, SaleItem, SalePayment } from '../types';
+import { functionErrorMessage } from '../lib/functions';
 
 // El remito no guarda precio: se factura al precio ACTUAL del producto, no al que tenía al entregarse.
 function deliveryNoteTotal(note: DeliveryNote, productsById: Record<string, Product>): number {
@@ -171,9 +172,10 @@ function NewSaleForm({
       },
     });
 
-    if (error || (data as { error?: string } | null)?.error) {
+    const failure = await functionErrorMessage(data, error);
+    if (failure) {
       setStatus('error');
-      setErrorMessage((data as { error?: string } | null)?.error ?? 'Error de conexión. Intentá nuevamente.');
+      setErrorMessage(failure);
       return;
     }
 

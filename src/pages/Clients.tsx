@@ -2,16 +2,17 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Search, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { editableRowProps, stopRowClick } from '../lib/rowClick';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
 import { formatCurrency } from '../lib/format';
 import type { Client } from '../types';
 
-function NewClientForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: () => void }) {
-  const [name, setName] = useState('');
-  const [taxId, setTaxId] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
+function ClientForm({ client, onSaved, onCancel }: { client?: Client; onSaved: () => void; onCancel: () => void }) {
+  const [name, setName] = useState(client?.name ?? '');
+  const [taxId, setTaxId] = useState(client?.tax_id ?? '');
+  const [phone, setPhone] = useState(client?.phone ?? '');
+  const [address, setAddress] = useState(client?.address ?? '');
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string>();
 
@@ -20,13 +21,11 @@ function NewClientForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: (
     setStatus('saving');
     setErrorMessage(undefined);
 
-    const { error } = await supabase.from('clients').insert({
-      name,
-      tax_id: taxId || null,
-      phone: phone || null,
-      address: address || null,
-      account_balance: 0,
-    });
+    const fields = { name, tax_id: taxId || null, phone: phone || null, address: address || null };
+    // Editar nunca toca account_balance: la cuenta corriente solo la mueven ventas y cheques.
+    const { error } = client
+      ? await supabase.from('clients').update(fields).eq('id', client.id)
+      : await supabase.from('clients').insert({ ...fields, account_balance: 0 });
 
     if (error) {
       setStatus('error');
@@ -93,7 +92,7 @@ function NewClientForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: (
             disabled={status === 'saving'}
             className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500 disabled:opacity-50"
           >
-            Guardar cliente
+            {client ? 'Guardar cambios' : 'Guardar cliente'}
           </button>
         </div>
       </div>
@@ -105,6 +104,7 @@ export function Clients() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -119,8 +119,13 @@ export function Clients() {
   }
 
   function handleSaved() {
-    setShowForm(false);
+    closeForm();
     loadClients();
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    setEditingClient(null);
   }
 
   const filteredClients = clients.filter((client) => {
@@ -138,7 +143,10 @@ export function Clients() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Clientes</h1>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            setEditingClient(null);
+            setShowForm(true);
+          }}
           className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500"
         >
           <Plus size={16} />
@@ -156,15 +164,15 @@ export function Clients() {
         />
       </div>
 
-      {showForm && (
+      {(showForm || editingClient) && (
         <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium text-gray-900 dark:text-white">Nuevo cliente</h2>
-            <button onClick={() => setShowForm(false)} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white">{editingClient ? 'Editar cliente' : 'Nuevo cliente'}</h2>
+            <button onClick={closeForm} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
               <X size={18} />
             </button>
           </div>
-          <NewClientForm onSaved={handleSaved} onCancel={() => setShowForm(false)} />
+          <ClientForm key={editingClient?.id ?? 'new'} client={editingClient ?? undefined} onSaved={handleSaved} onCancel={closeForm} />
         </div>
       )}
 
@@ -187,24 +195,30 @@ export function Clients() {
               </tr>
             </thead>
             <tbody>
-              {filteredClients.map((client) => (
-                <tr key={client.id} className="border-b border-gray-200 dark:border-gray-800 last:border-0">
-                  <td className="px-5 py-3 text-gray-900 dark:text-white font-medium">{client.name}</td>
-                  <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{client.tax_id ?? '—'}</td>
-                  <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{client.phone ?? '—'}</td>
-                  <td className={`px-5 py-3 font-medium ${client.account_balance > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                    {formatCurrency(client.account_balance)}
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    <Link
-                      to={`/clientes/${client.id}`}
-                      className="rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600"
-                    >
-                      Ver historial
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+              {filteredClients.map((client) => {
+                const rowProps = editableRowProps(() => {
+                  setShowForm(false);
+                  setEditingClient(client);
+                });
+                return (
+                  <tr key={client.id} {...rowProps} className={`border-b border-gray-200 dark:border-gray-800 last:border-0 ${rowProps.className}`}>
+                    <td className="px-5 py-3 text-gray-900 dark:text-white font-medium">{client.name}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{client.tax_id ?? '—'}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{client.phone ?? '—'}</td>
+                    <td className={`px-5 py-3 font-medium ${client.account_balance > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                      {formatCurrency(client.account_balance)}
+                    </td>
+                    <td className="px-5 py-3 text-right cursor-default" onClick={stopRowClick}>
+                      <Link
+                        to={`/clientes/${client.id}`}
+                        className="rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600"
+                      >
+                        Ver historial
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

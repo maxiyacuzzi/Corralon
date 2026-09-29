@@ -56,4 +56,34 @@ describe('Clientes', () => {
     cy.contains('No se pudo guardar el cliente. Verificá tu conexión.').should('be.visible');
     cy.contains('h2', 'Nuevo cliente').should('exist');
   });
+
+  it('edita un cliente con click en la fila, sin tocar su cuenta corriente', () => {
+    mockSupabase({ profiles: [OWNER_PROFILE], clients: baseClients() });
+    cy.intercept('PATCH', '**/rest/v1/clients*').as('updateClient');
+    cy.loginAs('/clientes');
+
+    cy.contains('tr', 'Constructora Sur SRL').find('td').first().click(); // primera celda: el centro de la fila puede caer en la de botones
+    cy.contains('h2', 'Editar cliente').should('be.visible');
+    cy.get('form').within(() => {
+      cy.contains('label', 'Nombre').next('input').should('have.value', 'Constructora Sur SRL').clear().type('Constructora del Sur SRL');
+      cy.contains('label', 'Teléfono').next('input').type('1133334444');
+      cy.contains('button', 'Guardar cambios').click();
+    });
+
+    cy.wait('@updateClient').its('request.body').should((body) => {
+      expect(body).to.include({ name: 'Constructora del Sur SRL', phone: '1133334444' });
+      expect(body).not.to.have.property('account_balance');
+    });
+    cy.contains('tr', 'Constructora del Sur SRL').should('contain', '$15.000,00');
+  });
+
+  it('el link Ver historial navega sin abrir la edición', () => {
+    mockSupabase({ profiles: [OWNER_PROFILE], clients: baseClients() });
+    cy.loginAs('/clientes');
+
+    cy.contains('tr', 'Juan Pérez').within(() => {
+      cy.contains('a', 'Ver historial').click();
+    });
+    cy.location('pathname').should('eq', '/clientes/cli-1');
+  });
 });

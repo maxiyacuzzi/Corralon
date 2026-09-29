@@ -8,6 +8,7 @@ import { WhatsAppWebButton } from '../components/WhatsAppWebButton';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
 import type { Client, ClientWorkAddress, DeliveryNote, DeliveryNoteItem, Product, SaleDeliveryNote, Stockpile } from '../types';
+import { functionErrorMessage } from '../lib/functions';
 
 function NewDeliveryNoteForm({
   clients,
@@ -64,9 +65,10 @@ function NewDeliveryNoteForm({
       },
     });
 
-    if (error || (data as { error?: string } | null)?.error) {
+    const failure = await functionErrorMessage(data, error);
+    if (failure) {
       setStatus('error');
-      setErrorMessage((data as { error?: string } | null)?.error ?? 'Error de conexión. Intentá nuevamente.');
+      setErrorMessage(failure);
       return;
     }
 
