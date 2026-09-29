@@ -19,8 +19,18 @@ jobs:
 
       - run: npm ci
 
+      # Si el secreto CYPRESS_RECORD_KEY está configurado (Settings → Secrets and
+      # variables → Actions), la corrida se graba en Cypress Cloud; si no (p. ej. un
+      # PR desde un fork, donde GitHub no expone secretos), corre igual sin grabar.
       - name: Run Cypress against a mocked backend
-        run: npm run test:e2e
+        env:
+          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+        run: |
+          if [ -n "$CYPRESS_RECORD_KEY" ]; then
+            npm run test:e2e:record
+          else
+            npm run test:e2e
+          fi
 
       - uses: actions/upload-artifact@v4
         if: failure()

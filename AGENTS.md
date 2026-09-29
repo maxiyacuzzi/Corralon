@@ -61,8 +61,12 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
   dummy (no son credenciales reales) — Vite los carga con `--mode test`,
   que es lo que usan los scripts `test:e2e*`. No pisa `.env` en desarrollo
   normal (`npm run dev` sigue usando `.env`).
-- CI: `.github/workflows/cypress.yml` corre `npm run test:e2e` en cada push
-  y PR a `main`. No necesita secrets porque el backend está mockeado.
+- CI: `.github/workflows/cypress.yml` corre los tests en cada push y PR a
+  `main`. El backend está mockeado, así que no necesita credenciales de
+  Supabase. Si existe el secreto de repositorio `CYPRESS_RECORD_KEY`, usa
+  `npm run test:e2e:record` y la corrida queda grabada en Cypress Cloud
+  (`projectId` en `cypress.config.ts`); si no, `npm run test:e2e` sin
+  grabar. La record key nunca va en el código.
 - Reporte: `cypress-mochawesome-reporter` (configurado en `cypress.config.ts`)
   genera `cypress/reports/index.html` en cada corrida — un solo archivo
   autocontenido (screenshots de los fallos embebidas) que se puede abrir

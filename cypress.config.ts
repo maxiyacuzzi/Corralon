@@ -2,6 +2,9 @@ import { defineConfig } from 'cypress';
 import mochawesomeReporterPlugin from 'cypress-mochawesome-reporter/plugin.js';
 
 export default defineConfig({
+  // Proyecto de Cypress Cloud donde se graban las corridas (`cypress run --record`).
+  // No es secreto; la record key sí lo es y va en el secreto CYPRESS_RECORD_KEY.
+  projectId: 'kkay4g',
   reporter: 'cypress-mochawesome-reporter',
   reporterOptions: {
     reportDir: 'cypress/reports',
