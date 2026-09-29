@@ -1,21 +1,29 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { editableRowProps, stopRowClick } from '../lib/rowClick';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
-import { orderCategoriesByHierarchy } from '../lib/categories';
+import { categoryFullName, descendantIds, indentedCategoryLabel, orderCategoriesByHierarchy, type CategoryOption } from '../lib/categories';
 import type { Category } from '../types';
 
-function NewCategoryForm({
+function CategoryForm({
   parent,
+  category,
+  parentOptions,
+  parentPath,
   onSaved,
   onCancel,
 }: {
-  parent: Category | null;
+  parent: Category | null; // alta de subcategoría: su categoría padre
+  category: Category | null; // edición: la categoría a editar
+  parentOptions: CategoryOption[]; // edición: categorías elegibles como padre (sin ella misma ni sus subcategorías)
+  parentPath?: string; // alta de subcategoría: ruta completa del padre, ej. "Cementos / Portland"
   onSaved: () => void;
   onCancel: () => void;
 }) {
-  const [name, setName] = useState('');
+  const [name, setName] = useState(category?.name ?? '');
+  const [parentId, setParentId] = useState(category?.parent_id ?? '');
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string>();
 
@@ -24,7 +32,9 @@ function NewCategoryForm({
     setStatus('saving');
     setErrorMessage(undefined);
 
-    const { error } = await supabase.from('categories').insert({ name, parent_id: parent?.id ?? null });
+    const { error } = category
+      ? await supabase.from('categories').update({ name, parent_id: parentId || null }).eq('id', category.id)
+      : await supabase.from('categories').insert({ name, parent_id: parent?.id ?? null });
 
     if (error) {
       setStatus('error');
@@ -42,7 +52,7 @@ function NewCategoryForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
-          {parent ? `Nombre de la subcategoría de "${parent.name}"` : 'Nombre'}
+          {parent ? `Nombre de la subcategoría de "${parentPath ?? parent.name}"` : 'Nombre'}
         </label>
         <input
           required
@@ -52,6 +62,24 @@ function NewCategoryForm({
           placeholder={parent ? 'Cemento' : 'Cementos y morteros'}
         />
       </div>
+
+      {category && (
+        <div>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Categoría padre</label>
+          <select
+            value={parentId}
+            onChange={(e) => setParentId(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
+          >
+            <option value="">Ninguna (categoría principal)</option>
+            {parentOptions.map(({ category: option, depth }) => (
+              <option key={option.id} value={option.id}>
+                {indentedCategoryLabel(option.name, depth)}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="flex items-center justify-between pt-2">
         <SaveStatusIndicator status={status} errorMessage={errorMessage} />
@@ -68,7 +96,7 @@ function NewCategoryForm({
             disabled={status === 'saving'}
             className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500 disabled:opacity-50"
           >
-            {parent ? 'Guardar subcategoría' : 'Guardar categoría'}
+            {category ? 'Guardar cambios' : parent ? 'Guardar subcategoría' : 'Guardar categoría'}
           </button>
         </div>
       </div>
@@ -76,11 +104,20 @@ function NewCategoryForm({
   );
 }
 
+function plural(count: number, singular: string, pluralForm: string) {
+  return `${count} ${count === 1 ? singular : pluralForm}`;
+}
+
 export function Categories() {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [productCategoryIds, setProductCategoryIds] = useState<(string | null)[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [subcategoryParent, setSubcategoryParent] = useState<Category | null>(null);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string>();
 
   useEffect(() => {
     loadCategories();
@@ -88,31 +125,57 @@ export function Categories() {
 
   async function loadCategories() {
     setLoading(true);
-    const { data } = await supabase.from('categories').select('*').order('name');
-    setCategories((data ?? []) as Category[]);
+    const [categoriesResult, productsResult] = await Promise.all([
+      supabase.from('categories').select('*').order('name'),
+      supabase.from('products').select('category_id'),
+    ]);
+    setCategories((categoriesResult.data ?? []) as Category[]);
+    setProductCategoryIds(((productsResult.data ?? []) as { category_id: string | null }[]).map((p) => p.category_id));
     setLoading(false);
   }
 
   function handleSaved() {
-    setShowForm(false);
-    setSubcategoryParent(null);
+    closeForm();
     loadCategories();
   }
 
   function closeForm() {
     setShowForm(false);
     setSubcategoryParent(null);
+    setEditingCategory(null);
   }
 
-  const isFormOpen = showForm || subcategoryParent !== null;
+  function openForm(open: () => void) {
+    closeForm();
+    setConfirmingDeleteId(null);
+    open();
+  }
+
+  async function deleteCategory(category: Category) {
+    setDeletingId(category.id);
+    setDeleteError(undefined);
+    // .select() devuelve las filas borradas: si RLS no deja borrar, no hay error pero vuelve vacío.
+    const { data, error } = await supabase.from('categories').delete().eq('id', category.id).select();
+    setDeletingId(null);
+    if (error || !data || data.length === 0) {
+      setDeleteError(`No se pudo eliminar "${category.name}". Verificá tu conexión.`);
+      return;
+    }
+    setConfirmingDeleteId(null);
+    loadCategories();
+  }
+
+  const isFormOpen = showForm || subcategoryParent !== null || editingCategory !== null;
   const orderedCategories = orderCategoriesByHierarchy(categories);
+  const categoriesById = Object.fromEntries(categories.map((c) => [c.id, c]));
+  const productCountOf = (ids: string[]) => productCategoryIds.filter((id) => id !== null && ids.includes(id)).length;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Categorías</h1>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => openForm(() => setShowForm(true))}
           className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-orange-500"
         >
           <Plus size={16} />
@@ -124,15 +187,32 @@ export function Categories() {
         <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-              {subcategoryParent ? 'Nueva subcategoría' : 'Nueva categoría'}
+              {editingCategory ? 'Editar categoría' : subcategoryParent ? 'Nueva subcategoría' : 'Nueva categoría'}
             </h2>
             <button onClick={closeForm} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
               <X size={18} />
             </button>
           </div>
-          <NewCategoryForm parent={subcategoryParent} onSaved={handleSaved} onCancel={closeForm} />
+          <CategoryForm
+            key={editingCategory?.id ?? subcategoryParent?.id ?? 'new'}
+            parent={subcategoryParent}
+            category={editingCategory}
+            parentPath={subcategoryParent ? categoryFullName(subcategoryParent, categoriesById) : undefined}
+            parentOptions={
+              editingCategory
+                ? // No puede colgar de sí misma ni de una de sus subcategorías (armaría un ciclo).
+                  orderedCategories.filter(
+                    ({ category }) => category.id !== editingCategory.id && !descendantIds(editingCategory.id, categories).includes(category.id)
+                  )
+                : []
+            }
+            onSaved={handleSaved}
+            onCancel={closeForm}
+          />
         </div>
       )}
+
+      {deleteError && <p className="text-sm text-red-500">{deleteError}</p>}
 
       <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-800 overflow-x-auto">
         {loading ? (
@@ -140,25 +220,74 @@ export function Categories() {
         ) : categories.length === 0 ? (
           <p className="p-5 text-gray-500 dark:text-gray-400">No hay categorías cargadas todavía.</p>
         ) : (
-          orderedCategories.map(({ category, depth }) => (
-            <div
-              key={category.id}
-              className={`flex items-center justify-between px-5 py-3 ${depth > 0 ? 'pl-10' : ''}`}
-            >
-              <span className={depth > 0 ? 'text-gray-600 dark:text-gray-300 text-sm' : 'text-gray-900 dark:text-white font-medium'}>
-                {depth > 0 ? `↳ ${category.name}` : category.name}
-              </span>
-              {depth === 0 && (
-                <button
-                  onClick={() => setSubcategoryParent(category)}
-                  className="flex items-center gap-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600"
-                >
-                  <Plus size={14} />
-                  Subcategoría
-                </button>
-              )}
-            </div>
-          ))
+          orderedCategories.map(({ category, depth }) => {
+            // Al borrarla se borran en cascada todas sus subcategorías, en todos los niveles.
+            const subcategoryIds = descendantIds(category.id, categories);
+            const affectedProducts = productCountOf([category.id, ...subcategoryIds]);
+            const rowProps = editableRowProps(() => openForm(() => setEditingCategory(category)));
+            return (
+              <div
+                key={category.id}
+                {...rowProps}
+                style={{ paddingLeft: `${1.25 + depth * 1.5}rem` }}
+                className={`px-5 py-3 ${rowProps.className}`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className={depth > 0 ? 'text-gray-600 dark:text-gray-300 text-sm' : 'text-gray-900 dark:text-white font-medium'}>
+                    {depth > 0 ? `↳ ${category.name}` : category.name}
+                  </span>
+                  <div className="flex items-center gap-2 cursor-default" onClick={stopRowClick}>
+                    <button
+                      onClick={() => openForm(() => setSubcategoryParent(category))}
+                      className="flex items-center gap-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600"
+                    >
+                      <Plus size={14} />
+                      Subcategoría
+                    </button>
+                    <button
+                      onClick={() => {
+                        setDeleteError(undefined);
+                        setConfirmingDeleteId(category.id);
+                      }}
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-500/10"
+                    >
+                      <Trash2 size={14} />
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+
+                {confirmingDeleteId === category.id && (
+                  <div
+                    onClick={stopRowClick}
+                    className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3 cursor-default"
+                  >
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                      ¿Eliminar "{category.name}"?
+                      {subcategoryIds.length === 1 && ' También se elimina su subcategoría.'}
+                      {subcategoryIds.length > 1 && ` También se eliminan sus ${subcategoryIds.length} subcategorías (de todos los niveles).`}
+                      {affectedProducts > 0 && ` ${plural(affectedProducts, 'producto queda', 'productos quedan')} sin categoría.`}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setConfirmingDeleteId(null)}
+                        className="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => deleteCategory(category)}
+                        disabled={deletingId === category.id}
+                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-500 disabled:opacity-50"
+                      >
+                        Sí, eliminar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
     </div>

@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import type { SaveStatus } from './SaveStatusIndicator';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
-import { orderCategoriesByHierarchy } from '../lib/categories';
+import { indentedCategoryLabel, orderCategoriesByHierarchy } from '../lib/categories';
 import type { Category, Product, Supplier } from '../types';
 
 interface ProductFormProps {
@@ -80,7 +80,7 @@ export function ProductForm({ product, categories, suppliers, onSaved, onCancel 
             <option value="">Sin categoría</option>
             {orderedCategories.map(({ category, depth }) => (
               <option key={category.id} value={category.id}>
-                {depth > 0 ? `  ↳ ${category.name}` : category.name}
+                {indentedCategoryLabel(category.name, depth)}
               </option>
             ))}
           </select>
