@@ -27,11 +27,17 @@ function fakeSession(profile: TestProfile) {
   };
 }
 
-Cypress.Commands.add('loginAs', (path = '/', profile: TestProfile = OWNER_PROFILE) => {
+// Misma key que STORAGE_KEY en src/context/ThemeContext.tsx.
+const THEME_STORAGE_KEY = 'corralon-theme';
+
+Cypress.Commands.add('loginAs', (path = '/', profile: TestProfile = OWNER_PROFILE, theme: 'light' | 'dark' = 'light') => {
   const session = fakeSession(profile);
   cy.visit(path, {
     onBeforeLoad(win) {
       win.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+      // Tema fijo: si no, ThemeContext toma el del sistema operativo y los tests
+      // se comportan distinto en una Mac en modo oscuro que en CI (Linux, modo claro).
+      win.localStorage.setItem(THEME_STORAGE_KEY, theme);
     },
   });
 });
@@ -44,7 +50,7 @@ declare global {
        * Simula una sesión ya iniciada seteando localStorage antes de visitar `path`,
        * sin pasar por el formulario de login ni pegarle a Supabase Auth.
        */
-      loginAs(path?: string, profile?: TestProfile): Chainable<void>;
+      loginAs(path?: string, profile?: TestProfile, theme?: 'light' | 'dark'): Chainable<void>;
     }
   }
 }

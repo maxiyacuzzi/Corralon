@@ -93,7 +93,7 @@ describe('Proveedores', () => {
     cy.intercept('PATCH', '**/rest/v1/suppliers*').as('updateSupplier');
     cy.loginAs('/proveedores');
 
-    cy.contains('tr', 'Loma Negra S.A.').click();
+    cy.contains('tr', 'Loma Negra S.A.').find('td').first().click(); // primera celda: el centro de la fila puede caer en la de botones
     cy.contains('h2', 'Editar proveedor').should('be.visible');
     cy.get('form').within(() => {
       cy.contains('label', 'Teléfono').next('input').should('have.value', '1122334455').clear().type('1199998888');

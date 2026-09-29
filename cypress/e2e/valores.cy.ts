@@ -206,7 +206,7 @@ describe('Valores', () => {
     cy.intercept('PATCH', '**/rest/v1/checks*').as('updateCheck');
     cy.loginAs('/valores');
 
-    cy.contains('tr', 'Juan Pérez').click();
+    cy.contains('tr', 'Juan Pérez').find('td').first().click(); // primera celda: el centro de la fila puede caer en la de botones
     cy.contains('h2', 'Editar cheque N.º 00012345').should('be.visible');
     cy.get('form').within(() => {
       cy.contains('label', 'Banco').next('input').should('have.value', 'Banco Galicia').clear().type('Banco Macro');
@@ -231,7 +231,7 @@ describe('Valores', () => {
     cy.intercept('PATCH', '**/rest/v1/checks*').as('updateCheck');
     cy.loginAs('/valores');
 
-    cy.contains('tr', 'Juan Pérez').click();
+    cy.contains('tr', 'Juan Pérez').find('td').first().click(); // primera celda: el centro de la fila puede caer en la de botones
     cy.get('form').within(() => {
       cy.contains('label', 'Monto').next('input').should('be.disabled');
       cy.contains('label', 'Cliente (quién lo dio)').next('select').should('be.disabled');
@@ -288,7 +288,7 @@ describe('Valores', () => {
     cy.intercept('PATCH', '**/rest/v1/own_checks*').as('updateOwnCheck');
     cy.loginAs('/valores?tab=emitidos');
 
-    cy.contains('tr', 'Loma Negra S.A.').click();
+    cy.contains('tr', 'Loma Negra S.A.').find('td').first().click(); // primera celda: el centro de la fila puede caer en la de botones
     cy.contains('h2', 'Editar cheque emitido N.º 00070001').should('be.visible');
     cy.get('form').within(() => {
       cy.contains('label', 'Monto').next('input').should('have.value', '90000').clear().type('95000');

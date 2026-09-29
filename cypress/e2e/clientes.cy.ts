@@ -62,7 +62,7 @@ describe('Clientes', () => {
     cy.intercept('PATCH', '**/rest/v1/clients*').as('updateClient');
     cy.loginAs('/clientes');
 
-    cy.contains('tr', 'Constructora Sur SRL').click();
+    cy.contains('tr', 'Constructora Sur SRL').find('td').first().click(); // primera celda: el centro de la fila puede caer en la de botones
     cy.contains('h2', 'Editar cliente').should('be.visible');
     cy.get('form').within(() => {
       cy.contains('label', 'Nombre').next('input').should('have.value', 'Constructora Sur SRL').clear().type('Constructora del Sur SRL');

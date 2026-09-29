@@ -59,7 +59,7 @@ describe('Productos', () => {
     seedProducts();
     cy.loginAs('/productos');
 
-    cy.contains('tr', 'Cemento Loma Negra').click();
+    cy.contains('tr', 'Cemento Loma Negra').find('td').first().click(); // primera celda: el centro de la fila puede caer en la de botones
 
     cy.contains('h2', 'Editar producto').should('exist');
     cy.contains('button', 'Editar').should('not.exist');
@@ -102,7 +102,7 @@ describe('Productos', () => {
       'updateProductFails'
     );
 
-    cy.contains('tr', 'Cemento Loma Negra').click();
+    cy.contains('tr', 'Cemento Loma Negra').find('td').first().click(); // primera celda: el centro de la fila puede caer en la de botones
     cy.contains('label', 'Precio').next('input').clear().type('4200');
     cy.contains('button', 'Guardar cambios').click();
 

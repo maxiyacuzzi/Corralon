@@ -223,9 +223,8 @@ describe('Compras', () => {
 
   it('el comprobante se ve oscuro en modo oscuro, pero blanco al exportar a PDF', () => {
     seedPurchases([PURCHASE]);
-    cy.loginAs('/compras');
+    cy.loginAs('/compras', OWNER_PROFILE, 'dark');
 
-    cy.document().then((doc) => doc.documentElement.classList.add('dark'));
     cy.contains('tr', 'Factura A 0001-00001234').within(() => {
       cy.contains('button', 'Ver / Imprimir').click();
     });
