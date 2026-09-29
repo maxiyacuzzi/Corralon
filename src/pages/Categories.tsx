@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { editableRowProps, stopRowClick } from '../lib/rowClick';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
 import { orderCategoriesByHierarchy } from '../lib/categories';
@@ -215,13 +216,14 @@ export function Categories() {
           orderedCategories.map(({ category, depth }) => {
             const subcategories = subcategoriesOf(category.id);
             const affectedProducts = productCountOf([category.id, ...subcategories.map((s) => s.id)]);
+            const rowProps = editableRowProps(() => openForm(() => setEditingCategory(category)));
             return (
-              <div key={category.id} className={`px-5 py-3 ${depth > 0 ? 'pl-10' : ''}`}>
+              <div key={category.id} {...rowProps} className={`px-5 py-3 ${depth > 0 ? 'pl-10' : ''} ${rowProps.className}`}>
                 <div className="flex items-center justify-between gap-3">
                   <span className={depth > 0 ? 'text-gray-600 dark:text-gray-300 text-sm' : 'text-gray-900 dark:text-white font-medium'}>
                     {depth > 0 ? `↳ ${category.name}` : category.name}
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 cursor-default" onClick={stopRowClick}>
                     {depth === 0 && (
                       <button
                         onClick={() => openForm(() => setSubcategoryParent(category))}
@@ -231,13 +233,6 @@ export function Categories() {
                         Subcategoría
                       </button>
                     )}
-                    <button
-                      onClick={() => openForm(() => setEditingCategory(category))}
-                      className="flex items-center gap-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600"
-                    >
-                      <Pencil size={14} />
-                      Editar
-                    </button>
                     <button
                       onClick={() => {
                         setDeleteError(undefined);
@@ -252,7 +247,10 @@ export function Categories() {
                 </div>
 
                 {confirmingDeleteId === category.id && (
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3">
+                  <div
+                    onClick={stopRowClick}
+                    className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3 cursor-default"
+                  >
                     <p className="text-sm text-gray-600 dark:text-gray-300">
                       ¿Eliminar "{category.name}"?
                       {subcategories.length === 1 && ' También se elimina su subcategoría.'}

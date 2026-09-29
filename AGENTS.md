@@ -216,6 +216,10 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
   (rules-of-hooks, only-export-components). No agregar config de ESLint.
 - TypeScript estricto según `tsconfig.app.json`; evitar `any`.
 - Componentes funcionales, sin clases.
+- Tablas/listas editables: no hay botón "Editar"; se edita haciendo click
+  en la fila (`editableRowProps` de `src/lib/rowClick.ts`, que también
+  responde a Enter y sube hasta el formulario). Las celdas con botones o
+  links propios llevan `onClick={stopRowClick}` para no abrir la edición.
 - Los textos de la UI están en español (nombres de tablas y campos en
   inglés/snake_case, UI en español) — mantené esa convención en código nuevo.
 

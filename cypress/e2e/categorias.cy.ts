@@ -91,9 +91,8 @@ describe('Categorías', () => {
     cy.intercept('PATCH', '**/rest/v1/categories*').as('updateCategory');
     cy.loginAs('/categorias');
 
-    cy.contains('span', 'Áridos').parent().within(() => {
-      cy.contains('button', 'Editar').click();
-    });
+    cy.contains('span', 'Áridos').click();
+    cy.contains('button', 'Editar').should('not.exist');
 
     cy.contains('h2', 'Editar categoría').should('be.visible');
     cy.get('form').within(() => {
@@ -114,9 +113,7 @@ describe('Categorías', () => {
     cy.intercept('PATCH', '**/rest/v1/categories*').as('updateCategory');
     cy.loginAs('/categorias');
 
-    cy.contains('span', '↳ Cemento').parent().within(() => {
-      cy.contains('button', 'Editar').click();
-    });
+    cy.contains('span', '↳ Cemento').click();
     cy.get('form').within(() => {
       cy.contains('label', 'Categoría padre').next('select').select('Áridos');
       cy.contains('button', 'Guardar cambios').click();
@@ -159,5 +156,16 @@ describe('Categorías', () => {
 
     cy.contains('¿Eliminar "Áridos"?').should('not.exist');
     cy.contains('span', 'Áridos').should('be.visible');
+  });
+
+  it('los botones de la fila (Subcategoría, Eliminar) no abren la edición', () => {
+    mockSupabase({ profiles: [OWNER_PROFILE], categories: baseCategories() });
+    cy.loginAs('/categorias');
+
+    cy.contains('span', 'Áridos').parent().within(() => {
+      cy.contains('button', 'Eliminar').click();
+    });
+    cy.contains('¿Eliminar "Áridos"?').click();
+    cy.contains('h2', 'Editar categoría').should('not.exist');
   });
 });
