@@ -225,12 +225,14 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
   "Recibido"), no la de emisión — esa es `emission_date`. Las columnas
   `date` se muestran con `formatDateOnly` (`src/lib/format.ts`), no con
   `new Date(...)`, que las corre un día en Argentina (UTC-3).
-- `DeliveryNotePreview`, `QuotePreview`, `SalePreview` y `PurchasePreview` son la excepción
-  al tema oscuro del resto de la app: siempre fondo blanco/texto oscuro
-  (look "papel"), a propósito — son la misma vista que se imprime y que
-  se exporta a PDF para compartir, así que tienen que verse igual en
-  pantalla, al imprimir y en el PDF compartido. No las vuelvas a poner
-  en modo oscuro condicionado a `print:`.
+- `DeliveryNotePreview`, `QuotePreview`, `SalePreview` y `PurchasePreview`
+  (comprobantes) son "papel": al imprimir y en el PDF compartido salen
+  **siempre** en blanco. En pantalla siguen el tema de la app vía la
+  variante `paper-dark:` (definida en `src/index.css`): solo aplica con
+  `.dark`, en `@media screen` y fuera de `.pdf-export`, clase que
+  `elementToPdfFile` (`src/lib/pdf.ts`) le pone al nodo mientras lo
+  captura. Para colores oscuros en un comprobante usá `paper-dark:`, nunca
+  `dark:` (que también aplicaría al imprimir y al PDF).
 
 ## Convenciones de código
 

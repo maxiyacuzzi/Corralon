@@ -220,4 +220,23 @@ describe('Compras', () => {
     cy.contains('null value in column "amount_paid" violates not-null constraint').should('be.visible');
     cy.contains('Error de conexión').should('not.exist');
   });
+
+  it('el comprobante se ve oscuro en modo oscuro, pero blanco al exportar a PDF', () => {
+    seedPurchases([PURCHASE]);
+    cy.loginAs('/compras');
+
+    cy.document().then((doc) => doc.documentElement.classList.add('dark'));
+    cy.contains('tr', 'Factura A 0001-00001234').within(() => {
+      cy.contains('button', 'Ver / Imprimir').click();
+    });
+
+    // En pantalla, modo oscuro: fondo gris oscuro (no blanco).
+    cy.contains('h2', 'Comprobante de compra')
+      .closest('.rounded-xl')
+      .should('not.have.css', 'background-color', 'rgb(255, 255, 255)');
+
+    // Durante la exportación a PDF (lib/pdf.ts agrega .pdf-export) vuelve a ser papel blanco.
+    cy.get('.print-area').then(($area) => $area[0].classList.add('pdf-export'));
+    cy.contains('h2', 'Comprobante de compra').closest('.rounded-xl').should('have.css', 'background-color', 'rgb(255, 255, 255)');
+  });
 });
