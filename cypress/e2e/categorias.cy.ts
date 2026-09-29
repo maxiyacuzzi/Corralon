@@ -168,4 +168,54 @@ describe('Categorías', () => {
     cy.contains('¿Eliminar "Áridos"?').click();
     cy.contains('h2', 'Editar categoría').should('not.exist');
   });
+
+  describe('varios niveles de subcategorías', () => {
+    const TREE = [
+      ...baseCategories(),
+      { id: 'cat-3', name: 'Cemento', parent_id: 'cat-1', created_at: '2026-01-01T00:00:00.000Z' },
+      { id: 'cat-4', name: 'Portland', parent_id: 'cat-3', created_at: '2026-01-01T00:00:00.000Z' },
+    ];
+
+    it('muestra los niveles anidados y permite agregar una subcategoría a una subcategoría', () => {
+      mockSupabase({ profiles: [OWNER_PROFILE], categories: TREE });
+      cy.intercept('POST', '**/rest/v1/categories*').as('insertCategory');
+      cy.loginAs('/categorias');
+
+      cy.contains('span', '↳ Portland').should('be.visible');
+      cy.contains('span', '↳ Portland').parent().within(() => {
+        cy.contains('button', 'Subcategoría').click();
+      });
+      cy.contains('label', 'Nombre de la subcategoría de "Cementos y morteros / Cemento / Portland"').should('be.visible');
+      cy.get('form').within(() => {
+        cy.get('input').type('Tipo CPC40');
+        cy.contains('button', 'Guardar subcategoría').click();
+      });
+
+      cy.wait('@insertCategory').its('request.body').should('deep.include', { parent_id: 'cat-4' });
+      cy.contains('span', '↳ Tipo CPC40').should('be.visible');
+    });
+
+    it('al editar no ofrece como padre a la misma categoría ni a sus subcategorías', () => {
+      mockSupabase({ profiles: [OWNER_PROFILE], categories: TREE });
+      cy.loginAs('/categorias');
+
+      cy.contains('span', '↳ Cemento').click();
+      cy.contains('label', 'Categoría padre').next('select').within(() => {
+        cy.contains('option', 'Áridos').should('exist');
+        cy.contains('option', 'Cementos y morteros').should('exist');
+        cy.contains('option', 'Portland').should('not.exist');
+        cy.get('option').filter((_, el) => el.textContent?.trim() === '↳ Cemento').should('not.exist');
+      });
+    });
+
+    it('al eliminar avisa cuántas subcategorías de todos los niveles se borran', () => {
+      mockSupabase({ profiles: [OWNER_PROFILE], categories: TREE });
+      cy.loginAs('/categorias');
+
+      cy.contains('span', 'Cementos y morteros').parent().within(() => {
+        cy.contains('button', 'Eliminar').click();
+      });
+      cy.contains('¿Eliminar "Cementos y morteros"?').should('contain', 'También se eliminan sus 2 subcategorías (de todos los niveles).');
+    });
+  });
 });

@@ -128,7 +128,9 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
   cuenta corriente (ver `checks` abajo); `018_purchases.sql` crea
   `purchases` (compras a proveedores); `019_categories_delete.sql` agrega
   la política de delete de `categories` (borrar una categoría borra sus
-  subcategorías en cascada y deja sus productos con `category_id` null).
+  subcategorías en cascada y deja sus productos con `category_id` null);
+  `023_categories_multilevel.sql` agrega el trigger que impide ciclos en
+  `categories.parent_id` (subcategorías de cualquier profundidad).
 
 ## Modelo de dominio (clave)
 
@@ -145,7 +147,10 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
   `unit_price` en `DeliveryNoteItem` ni en el formulario de remitos.
 - `categories` y `suppliers` son catálogos simples (nombre + datos de
   contacto) para clasificar productos vía `products.category_id` /
-  `products.supplier_id`.
+  `products.supplier_id`. Las categorías son un árbol de cualquier
+  profundidad (`parent_id`); usá los helpers de `src/lib/categories.ts`
+  (`orderCategoriesByHierarchy`, `categoryFullName` → "A / B / C",
+  `descendantIds`, `indentedCategoryLabel`) en vez de asumir un nivel.
 - `purchases`: compras a proveedores (fecha, forma de pago, ítems).
   `register-purchase` guarda la compra y suma cada producto al stock vía
   `register-stock-movement` (`purchase_in`, `reference_id` = la compra).

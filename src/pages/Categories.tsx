@@ -4,21 +4,21 @@ import { supabase } from '../lib/supabase';
 import { editableRowProps, stopRowClick } from '../lib/rowClick';
 import type { SaveStatus } from '../components/SaveStatusIndicator';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
-import { orderCategoriesByHierarchy } from '../lib/categories';
+import { categoryFullName, descendantIds, indentedCategoryLabel, orderCategoriesByHierarchy, type CategoryOption } from '../lib/categories';
 import type { Category } from '../types';
 
 function CategoryForm({
   parent,
   category,
   parentOptions,
-  hasSubcategories,
+  parentPath,
   onSaved,
   onCancel,
 }: {
   parent: Category | null; // alta de subcategoría: su categoría padre
   category: Category | null; // edición: la categoría a editar
-  parentOptions: Category[]; // edición: categorías de nivel superior elegibles como padre
-  hasSubcategories: boolean; // edición: si tiene subcategorías no puede pasar a ser subcategoría (un solo nivel)
+  parentOptions: CategoryOption[]; // edición: categorías elegibles como padre (sin ella misma ni sus subcategorías)
+  parentPath?: string; // alta de subcategoría: ruta completa del padre, ej. "Cementos / Portland"
   onSaved: () => void;
   onCancel: () => void;
 }) {
@@ -52,7 +52,7 @@ function CategoryForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
-          {parent ? `Nombre de la subcategoría de "${parent.name}"` : 'Nombre'}
+          {parent ? `Nombre de la subcategoría de "${parentPath ?? parent.name}"` : 'Nombre'}
         </label>
         <input
           required
@@ -63,7 +63,7 @@ function CategoryForm({
         />
       </div>
 
-      {category && !hasSubcategories && (
+      {category && (
         <div>
           <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Categoría padre</label>
           <select
@@ -72,9 +72,9 @@ function CategoryForm({
             className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white"
           >
             <option value="">Ninguna (categoría principal)</option>
-            {parentOptions.map((option) => (
+            {parentOptions.map(({ category: option, depth }) => (
               <option key={option.id} value={option.id}>
-                {option.name}
+                {indentedCategoryLabel(option.name, depth)}
               </option>
             ))}
           </select>
@@ -167,7 +167,7 @@ export function Categories() {
 
   const isFormOpen = showForm || subcategoryParent !== null || editingCategory !== null;
   const orderedCategories = orderCategoriesByHierarchy(categories);
-  const subcategoriesOf = (id: string) => categories.filter((c) => c.parent_id === id);
+  const categoriesById = Object.fromEntries(categories.map((c) => [c.id, c]));
   const productCountOf = (ids: string[]) => productCategoryIds.filter((id) => id !== null && ids.includes(id)).length;
 
   return (
@@ -197,8 +197,15 @@ export function Categories() {
             key={editingCategory?.id ?? subcategoryParent?.id ?? 'new'}
             parent={subcategoryParent}
             category={editingCategory}
-            parentOptions={categories.filter((c) => c.parent_id === null && c.id !== editingCategory?.id)}
-            hasSubcategories={editingCategory ? subcategoriesOf(editingCategory.id).length > 0 : false}
+            parentPath={subcategoryParent ? categoryFullName(subcategoryParent, categoriesById) : undefined}
+            parentOptions={
+              editingCategory
+                ? // No puede colgar de sí misma ni de una de sus subcategorías (armaría un ciclo).
+                  orderedCategories.filter(
+                    ({ category }) => category.id !== editingCategory.id && !descendantIds(editingCategory.id, categories).includes(category.id)
+                  )
+                : []
+            }
             onSaved={handleSaved}
             onCancel={closeForm}
           />
@@ -214,25 +221,29 @@ export function Categories() {
           <p className="p-5 text-gray-500 dark:text-gray-400">No hay categorías cargadas todavía.</p>
         ) : (
           orderedCategories.map(({ category, depth }) => {
-            const subcategories = subcategoriesOf(category.id);
-            const affectedProducts = productCountOf([category.id, ...subcategories.map((s) => s.id)]);
+            // Al borrarla se borran en cascada todas sus subcategorías, en todos los niveles.
+            const subcategoryIds = descendantIds(category.id, categories);
+            const affectedProducts = productCountOf([category.id, ...subcategoryIds]);
             const rowProps = editableRowProps(() => openForm(() => setEditingCategory(category)));
             return (
-              <div key={category.id} {...rowProps} className={`px-5 py-3 ${depth > 0 ? 'pl-10' : ''} ${rowProps.className}`}>
+              <div
+                key={category.id}
+                {...rowProps}
+                style={{ paddingLeft: `${1.25 + depth * 1.5}rem` }}
+                className={`px-5 py-3 ${rowProps.className}`}
+              >
                 <div className="flex items-center justify-between gap-3">
                   <span className={depth > 0 ? 'text-gray-600 dark:text-gray-300 text-sm' : 'text-gray-900 dark:text-white font-medium'}>
                     {depth > 0 ? `↳ ${category.name}` : category.name}
                   </span>
                   <div className="flex items-center gap-2 cursor-default" onClick={stopRowClick}>
-                    {depth === 0 && (
-                      <button
-                        onClick={() => openForm(() => setSubcategoryParent(category))}
-                        className="flex items-center gap-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600"
-                      >
-                        <Plus size={14} />
-                        Subcategoría
-                      </button>
-                    )}
+                    <button
+                      onClick={() => openForm(() => setSubcategoryParent(category))}
+                      className="flex items-center gap-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600"
+                    >
+                      <Plus size={14} />
+                      Subcategoría
+                    </button>
                     <button
                       onClick={() => {
                         setDeleteError(undefined);
@@ -253,8 +264,8 @@ export function Categories() {
                   >
                     <p className="text-sm text-gray-600 dark:text-gray-300">
                       ¿Eliminar "{category.name}"?
-                      {subcategories.length === 1 && ' También se elimina su subcategoría.'}
-                      {subcategories.length > 1 && ` También se eliminan sus ${subcategories.length} subcategorías.`}
+                      {subcategoryIds.length === 1 && ' También se elimina su subcategoría.'}
+                      {subcategoryIds.length > 1 && ` También se eliminan sus ${subcategoryIds.length} subcategorías (de todos los niveles).`}
                       {affectedProducts > 0 && ` ${plural(affectedProducts, 'producto queda', 'productos quedan')} sin categoría.`}
                     </p>
                     <div className="flex gap-2">
