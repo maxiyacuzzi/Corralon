@@ -1,5 +1,5 @@
 import { mockSupabase } from '../support/mock-supabase';
-import { OWNER_PROFILE, baseCategories } from '../support/fixtures';
+import { OWNER_PROFILE, baseCategories, baseProducts } from '../support/fixtures';
 
 describe('Categorías', () => {
   it('lista las categorías existentes', () => {
@@ -84,5 +84,80 @@ describe('Categorías', () => {
     cy.loginAs('/categorias');
 
     cy.contains('↳ Cemento').should('be.visible');
+  });
+
+  it('edita el nombre de una categoría', () => {
+    mockSupabase({ profiles: [OWNER_PROFILE], categories: baseCategories() });
+    cy.intercept('PATCH', '**/rest/v1/categories*').as('updateCategory');
+    cy.loginAs('/categorias');
+
+    cy.contains('span', 'Áridos').parent().within(() => {
+      cy.contains('button', 'Editar').click();
+    });
+
+    cy.contains('h2', 'Editar categoría').should('be.visible');
+    cy.get('form').within(() => {
+      cy.get('input').should('have.value', 'Áridos').clear().type('Áridos y piedras');
+      cy.contains('button', 'Guardar cambios').click();
+    });
+
+    cy.wait('@updateCategory').its('request.body').should('deep.include', { name: 'Áridos y piedras', parent_id: null });
+    cy.contains('h2', 'Editar categoría').should('not.exist');
+    cy.contains('Áridos y piedras').should('be.visible');
+  });
+
+  it('permite mover una subcategoría a otra categoría padre', () => {
+    mockSupabase({
+      profiles: [OWNER_PROFILE],
+      categories: [...baseCategories(), { id: 'cat-3', name: 'Cemento', parent_id: 'cat-1', created_at: '2026-01-01T00:00:00.000Z' }],
+    });
+    cy.intercept('PATCH', '**/rest/v1/categories*').as('updateCategory');
+    cy.loginAs('/categorias');
+
+    cy.contains('span', '↳ Cemento').parent().within(() => {
+      cy.contains('button', 'Editar').click();
+    });
+    cy.get('form').within(() => {
+      cy.contains('label', 'Categoría padre').next('select').select('Áridos');
+      cy.contains('button', 'Guardar cambios').click();
+    });
+
+    cy.wait('@updateCategory').its('request.body').should('deep.include', { name: 'Cemento', parent_id: 'cat-2' });
+  });
+
+  it('pide confirmación y elimina una categoría, avisando subcategorías y productos afectados', () => {
+    mockSupabase({
+      profiles: [OWNER_PROFILE],
+      categories: [...baseCategories(), { id: 'cat-3', name: 'Cemento', parent_id: 'cat-1', created_at: '2026-01-01T00:00:00.000Z' }],
+      products: baseProducts(),
+    });
+    cy.intercept('DELETE', '**/rest/v1/categories*').as('deleteCategory');
+    cy.loginAs('/categorias');
+
+    cy.contains('span', 'Cementos y morteros').parent().within(() => {
+      cy.contains('button', 'Eliminar').click();
+    });
+
+    cy.contains('¿Eliminar "Cementos y morteros"?')
+      .should('contain', 'También se elimina su subcategoría.')
+      .and('contain', '1 producto queda sin categoría.');
+    cy.contains('button', 'Sí, eliminar').click();
+
+    cy.wait('@deleteCategory').its('request.url').should('include', 'id=eq.cat-1');
+    cy.contains('span', 'Cementos y morteros').should('not.exist');
+  });
+
+  it('cancelar la eliminación no borra nada', () => {
+    mockSupabase({ profiles: [OWNER_PROFILE], categories: baseCategories() });
+    cy.loginAs('/categorias');
+
+    cy.contains('span', 'Áridos').parent().within(() => {
+      cy.contains('button', 'Eliminar').click();
+    });
+    cy.contains('¿Eliminar "Áridos"?').should('be.visible');
+    cy.contains('button', 'Cancelar').click();
+
+    cy.contains('¿Eliminar "Áridos"?').should('not.exist');
+    cy.contains('span', 'Áridos').should('be.visible');
   });
 });

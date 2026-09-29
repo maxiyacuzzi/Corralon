@@ -126,7 +126,9 @@ npm run test:e2e:report  # corre test:e2e y abre el reporte HTML al terminar (ma
   (`holder_tax_id`) y fecha de emisión (`emission_date`);
   `017_check_account_balance.sql` agrega el trigger de cheques sobre la
   cuenta corriente (ver `checks` abajo); `018_purchases.sql` crea
-  `purchases` (compras a proveedores).
+  `purchases` (compras a proveedores); `019_categories_delete.sql` agrega
+  la política de delete de `categories` (borrar una categoría borra sus
+  subcategorías en cascada y deja sus productos con `category_id` null).
 
 ## Modelo de dominio (clave)
 
